@@ -3,13 +3,15 @@ import os
 from mistralai.client import MistralClient
 from mistralai.models.chat_completion import ChatMessage
 from dotenv import load_dotenv
-import json
+import re
 
 # Load environment variables
 load_dotenv()
 
-# Initialize Mistral client
-client = MistralClient(api_key=os.getenv("MISTRAL_API_KEY"))
+@st.cache_resource
+def get_mistral_client():
+    """Initialize and cache the Mistral client."""
+    return MistralClient(api_key=os.getenv("MISTRAL_API_KEY"))
 
 # Define avatars and their personalities
 AVATARS = {
@@ -48,10 +50,11 @@ CRISIS_KEYWORDS = [
     "want to die", "better off dead", "hurt myself"
 ]
 
+CRISIS_PATTERN = re.compile("|".join(map(re.escape, CRISIS_KEYWORDS)), re.IGNORECASE)
+
 def detect_crisis(message):
     """Detect if the message indicates a crisis situation."""
-    message_lower = message.lower()
-    return any(keyword in message_lower for keyword in CRISIS_KEYWORDS)
+    return bool(CRISIS_PATTERN.search(message))
 
 def get_crisis_response():
     """Return emergency resources and crisis response."""
@@ -69,6 +72,7 @@ def get_crisis_response():
 def get_bot_response(messages, avatar):
     """Get response from Mistral AI model."""
     try:
+        client = get_mistral_client()
         chat_response = client.chat(
             model="mistral-tiny",
             messages=messages
