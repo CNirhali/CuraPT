@@ -1,5 +1,6 @@
 import streamlit as st
 import os
+import logging
 from mistralai.client import MistralClient
 from mistralai.models.chat_completion import ChatMessage
 from dotenv import load_dotenv
@@ -7,6 +8,10 @@ import json
 
 # Load environment variables
 load_dotenv()
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Initialize Mistral client
 client = MistralClient(api_key=os.getenv("MISTRAL_API_KEY"))
@@ -75,7 +80,10 @@ def get_bot_response(messages, avatar):
         )
         return chat_response.choices[0].message.content
     except Exception as e:
-        return f"I apologize, but I'm having trouble connecting right now. Please try again later. Error: {str(e)}"
+        # Log the error details server-side for maintainability
+        logger.error(f"Error calling Mistral AI: {str(e)}", exc_info=True)
+        # Avoid leaking internal error details to the user
+        return "I apologize, but I'm having trouble connecting right now. Please try again later."
 
 def main():
     st.title("Mental Health Ease Bot")
@@ -108,7 +116,8 @@ def main():
             st.write(message["content"])
 
     # Chat input
-    if prompt := st.chat_input("How are you feeling today?"):
+    # Limit input length to prevent potential DoS/resource exhaustion
+    if prompt := st.chat_input("How are you feeling today?", max_chars=2000):
         # Add user message to chat
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
