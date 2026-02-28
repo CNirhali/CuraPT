@@ -5,6 +5,11 @@ from mistralai.client import MistralClient
 from mistralai.models.chat_completion import ChatMessage
 from dotenv import load_dotenv
 import json
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
@@ -81,7 +86,10 @@ def get_bot_response(messages, avatar):
         )
         return chat_response.choices[0].message.content
     except Exception as e:
-        return f"I apologize, but I'm having trouble connecting right now. Please try again later. Error: {str(e)}"
+        # Log the full error server-side for debugging
+        logger.error(f"Error in get_bot_response: {str(e)}", exc_info=True)
+        # Return a generic error message to the user to prevent information leakage
+        return "I apologize, but I'm having trouble connecting right now. Please try again later."
 
 def main():
     st.title("Mental Health Ease Bot")
