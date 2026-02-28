@@ -1,6 +1,10 @@
 import streamlit as st
 import os
 import re
+import logging
+from mistralai.client import MistralClient
+from mistralai.models.chat_completion import ChatMessage
+from dotenv import load_dotenv
 from mistralai.client import MistralClient
 from mistralai.models.chat_completion import ChatMessage
 from dotenv import load_dotenv
@@ -17,6 +21,7 @@ load_dotenv()
 # Cache the Mistral client to prevent re-initialization on every rerun
 @st.cache_resource
 def get_mistral_client():
+    """Initialize and cache the Mistral client."""
     return MistralClient(api_key=os.getenv("MISTRAL_API_KEY"))
 
 # Define avatars and their personalities
@@ -57,6 +62,7 @@ CRISIS_KEYWORDS = [
 ]
 
 # Pre-compiled regex for faster crisis detection
+CRISIS_PATTERN = re.compile("|".join(map(re.escape, CRISIS_KEYWORDS)), re.IGNORECASE)
 CRISIS_PATTERN = re.compile(r'|'.join(map(re.escape, CRISIS_KEYWORDS)), re.IGNORECASE)
 
 def detect_crisis(message):
@@ -80,6 +86,7 @@ def get_bot_response(messages, avatar):
     """Get response from Mistral AI model."""
     client = get_mistral_client()
     try:
+        client = get_mistral_client()
         chat_response = client.chat(
             model="mistral-tiny",
             messages=messages
@@ -158,4 +165,4 @@ def main():
     st.sidebar.write("- Emergency Services: 911")
 
 if __name__ == "__main__":
-    main() 
+    main()
