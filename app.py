@@ -144,7 +144,8 @@ def main():
 
             # Get and display bot response
             with st.chat_message("assistant"):
-                response = get_bot_response(messages, selected_avatar)
+                with st.spinner(f"{selected_avatar} is thinking..."):
+                    response = get_bot_response(messages, selected_avatar)
                 st.write(response)
                 st.session_state.messages.append({"role": "assistant", "content": response})
 
