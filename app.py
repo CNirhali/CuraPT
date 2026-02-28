@@ -1,5 +1,6 @@
 import streamlit as st
 import os
+import re
 from mistralai.client import MistralClient
 from mistralai.models.chat_completion import ChatMessage
 from dotenv import load_dotenv
@@ -8,8 +9,10 @@ import json
 # Load environment variables
 load_dotenv()
 
-# Initialize Mistral client
-client = MistralClient(api_key=os.getenv("MISTRAL_API_KEY"))
+# Cache the Mistral client to prevent re-initialization on every rerun
+@st.cache_resource
+def get_mistral_client():
+    return MistralClient(api_key=os.getenv("MISTRAL_API_KEY"))
 
 # Define avatars and their personalities
 AVATARS = {
@@ -48,10 +51,12 @@ CRISIS_KEYWORDS = [
     "want to die", "better off dead", "hurt myself"
 ]
 
+# Pre-compiled regex for faster crisis detection
+CRISIS_PATTERN = re.compile(r'|'.join(map(re.escape, CRISIS_KEYWORDS)), re.IGNORECASE)
+
 def detect_crisis(message):
     """Detect if the message indicates a crisis situation."""
-    message_lower = message.lower()
-    return any(keyword in message_lower for keyword in CRISIS_KEYWORDS)
+    return bool(CRISIS_PATTERN.search(message))
 
 def get_crisis_response():
     """Return emergency resources and crisis response."""
@@ -68,6 +73,7 @@ def get_crisis_response():
 
 def get_bot_response(messages, avatar):
     """Get response from Mistral AI model."""
+    client = get_mistral_client()
     try:
         chat_response = client.chat(
             model="mistral-tiny",
@@ -107,8 +113,8 @@ def main():
         with st.chat_message(message["role"]):
             st.write(message["content"])
 
-    # Chat input
-    if prompt := st.chat_input("How are you feeling today?"):
+    # Chat input with length limit for performance and security
+    if prompt := st.chat_input("How are you feeling today?", max_chars=2000):
         # Add user message to chat
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
