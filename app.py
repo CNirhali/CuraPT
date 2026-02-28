@@ -14,8 +14,10 @@ load_dotenv()
 logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Initialize Mistral client
-client = MistralClient(api_key=os.getenv("MISTRAL_API_KEY"))
+# Cache the Mistral client to prevent re-initialization on every rerun
+@st.cache_resource
+def get_mistral_client():
+    return MistralClient(api_key=os.getenv("MISTRAL_API_KEY"))
 
 # Define avatars and their personalities
 AVATARS = {
@@ -53,6 +55,7 @@ CRISIS_KEYWORDS = [
     "suicide", "kill myself", "end it all", "ending it all", "no reason to live",
     "want to die", "better off dead", "hurt myself"
 ]
+# Pre-compiled regex for faster crisis detection
 CRISIS_PATTERN = re.compile(r'|'.join(map(re.escape, CRISIS_KEYWORDS)), re.IGNORECASE)
 
 def detect_crisis(message):
@@ -74,6 +77,7 @@ def get_crisis_response():
 
 def get_bot_response(messages, avatar):
     """Get response from Mistral AI model."""
+    client = get_mistral_client()
     try:
         chat_response = client.chat(
             model="mistral-tiny",
@@ -81,7 +85,9 @@ def get_bot_response(messages, avatar):
         )
         return chat_response.choices[0].message.content
     except Exception as e:
-        logger.error(f"Error getting bot response: {str(e)}", exc_info=True)
+        # Log the full error server-side for debugging
+        logger.error(f"Error in get_bot_response: {str(e)}", exc_info=True)
+        # Return a generic error message to the user to prevent information leakage
         return "I apologize, but I'm having trouble connecting right now. Please try again later. If the issue persists, please contact support."
 
 def main():
@@ -114,7 +120,7 @@ def main():
         with st.chat_message(message["role"]):
             st.write(message["content"])
 
-    # Chat input
+    # Chat input with length limit for performance and security
     if prompt := st.chat_input("How are you feeling today?", max_chars=2000):
         # Add user message to chat
         st.session_state.messages.append({"role": "user", "content": prompt})
@@ -137,10 +143,10 @@ def main():
 
             # Get and display bot response
             with st.chat_message("assistant"):
-                with st.spinner("Compassionately thinking..."):
+                with st.spinner(f"{selected_avatar} is thinking..."):
                     response = get_bot_response(messages, selected_avatar)
-                    st.write(response)
-                    st.session_state.messages.append({"role": "assistant", "content": response})
+                st.write(response)
+                st.session_state.messages.append({"role": "assistant", "content": response})
 
     # Display emergency resources
     st.sidebar.markdown("---")
@@ -154,4 +160,4 @@ def main():
     """)
 
 if __name__ == "__main__":
-    main() 
+    main()
