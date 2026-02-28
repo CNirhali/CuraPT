@@ -5,6 +5,11 @@ import logging
 from mistralai.client import MistralClient
 from mistralai.models.chat_completion import ChatMessage
 from dotenv import load_dotenv
+from mistralai.client import MistralClient
+from mistralai.models.chat_completion import ChatMessage
+from dotenv import load_dotenv
+import json
+import logging
 
 # Configure logging
 logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -58,6 +63,7 @@ CRISIS_KEYWORDS = [
 
 # Pre-compiled regex for faster crisis detection
 CRISIS_PATTERN = re.compile("|".join(map(re.escape, CRISIS_KEYWORDS)), re.IGNORECASE)
+CRISIS_PATTERN = re.compile(r'|'.join(map(re.escape, CRISIS_KEYWORDS)), re.IGNORECASE)
 
 def detect_crisis(message):
     """Detect if the message indicates a crisis situation."""
@@ -78,6 +84,7 @@ def get_crisis_response():
 
 def get_bot_response(messages, avatar):
     """Get response from Mistral AI model."""
+    client = get_mistral_client()
     try:
         client = get_mistral_client()
         chat_response = client.chat(
