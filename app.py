@@ -1,5 +1,7 @@
 import streamlit as st
 import os
+import re
+import logging
 import logging
 import re
 import re
@@ -76,6 +78,9 @@ CRISIS_PATTERN = re.compile(r'|'.join(map(re.escape, CRISIS_KEYWORDS)), re.IGNOR
 CRISIS_PATTERN = re.compile("|".join(map(re.escape, CRISIS_KEYWORDS)), re.IGNORECASE)
 CRISIS_PATTERN = re.compile(r'|'.join(map(re.escape, CRISIS_KEYWORDS)), re.IGNORECASE)
 
+# Pre-compiled regex for faster crisis detection
+CRISIS_PATTERN = re.compile(r'|'.join(map(re.escape, CRISIS_KEYWORDS)), re.IGNORECASE)
+
 def detect_crisis(message):
     """Detect if the message indicates a crisis situation using regex."""
     """Detect if the message indicates a crisis situation."""
@@ -106,6 +111,8 @@ def get_bot_response(messages, avatar):
         return chat_response.choices[0].message.content
     except Exception as e:
         # Log the full error server-side for debugging
+        logger.error(f"Error calling Mistral AI: {str(e)}", exc_info=True)
+        # Return a generic error message to the user to prevent information leakage
         logger.error(f"Error in get_bot_response: {str(e)}", exc_info=True)
         # Return a generic error message to the user to prevent information leakage
         return "I apologize, but I'm having trouble connecting right now. Please try again later. If the issue persists, please contact support."
