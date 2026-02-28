@@ -1,23 +1,27 @@
 import pytest
-from app import detect_crisis, get_bot_response
+from app import detect_crisis, get_bot_response, get_crisis_response
 from mistralai.models.chat_completion import ChatMessage
 
-def test_detect_crisis_positive():
-    assert detect_crisis("I want to kill myself") is True
-    assert detect_crisis("I feel like I want to end it all") is True
-    assert detect_crisis("maybe i should hurt myself") is True
+def test_detect_crisis():
+    assert detect_crisis("I want to kill myself") == True
+    assert detect_crisis("I'm feeling much better today") == False
+    assert detect_crisis("Life is not worth living, I want to die") == True
+    assert detect_crisis("I'm just tired") == False
 
-def test_detect_crisis_negative():
-    assert detect_crisis("I am feeling a bit sad today") is False
-    assert detect_crisis("How can I improve my productivity?") is False
-    assert detect_crisis("I love my life") is False
+def test_get_crisis_response():
+    response = get_crisis_response()
+    assert "988" in response
+    assert "741741" in response
+    assert "911" in response
 
 def test_get_bot_response_success(mocker):
     # Mock MistralClient
-    mock_client = mocker.patch("app.client")
+    mock_client = mocker.Mock()
     mock_response = mocker.Mock()
     mock_response.choices = [mocker.Mock(message=mocker.Mock(content="Hello! How can I help you?"))]
     mock_client.chat.return_value = mock_response
+
+    mocker.patch("app.get_mistral_client", return_value=mock_client)
 
     messages = [ChatMessage(role="user", content="Hello")]
     response = get_bot_response(messages, "Therapist")
@@ -26,8 +30,10 @@ def test_get_bot_response_success(mocker):
 
 def test_get_bot_response_error_masking(mocker):
     # Mock MistralClient to raise an exception
-    mock_client = mocker.patch("app.client")
+    mock_client = mocker.Mock()
     mock_client.chat.side_effect = Exception("Sensitive API Error: sk-123456789")
+
+    mocker.patch("app.get_mistral_client", return_value=mock_client)
 
     messages = [ChatMessage(role="user", content="Hello")]
     response = get_bot_response(messages, "Therapist")

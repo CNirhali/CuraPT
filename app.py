@@ -1,5 +1,6 @@
 import streamlit as st
 import os
+import re
 import logging
 from mistralai.client import MistralClient
 from mistralai.models.chat_completion import ChatMessage
@@ -10,11 +11,13 @@ import json
 load_dotenv()
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Initialize Mistral client
-client = MistralClient(api_key=os.getenv("MISTRAL_API_KEY"))
+# Cache the Mistral client to prevent re-initialization on every rerun
+@st.cache_resource
+def get_mistral_client():
+    return MistralClient(api_key=os.getenv("MISTRAL_API_KEY"))
 
 # Define avatars and their personalities
 AVATARS = {
@@ -53,10 +56,12 @@ CRISIS_KEYWORDS = [
     "want to die", "better off dead", "hurt myself"
 ]
 
+# Pre-compiled regex for faster crisis detection
+CRISIS_PATTERN = re.compile(r'|'.join(map(re.escape, CRISIS_KEYWORDS)), re.IGNORECASE)
+
 def detect_crisis(message):
     """Detect if the message indicates a crisis situation."""
-    message_lower = message.lower()
-    return any(keyword in message_lower for keyword in CRISIS_KEYWORDS)
+    return bool(CRISIS_PATTERN.search(message))
 
 def get_crisis_response():
     """Return emergency resources and crisis response."""
@@ -73,6 +78,7 @@ def get_crisis_response():
 
 def get_bot_response(messages, avatar):
     """Get response from Mistral AI model."""
+    client = get_mistral_client()
     try:
         chat_response = client.chat(
             model="mistral-tiny",
@@ -80,9 +86,9 @@ def get_bot_response(messages, avatar):
         )
         return chat_response.choices[0].message.content
     except Exception as e:
-        # Log the error details server-side for maintainability
+        # Log the full error server-side for debugging
         logger.error(f"Error calling Mistral AI: {str(e)}", exc_info=True)
-        # Avoid leaking internal error details to the user
+        # Return a generic error message to the user to prevent information leakage
         return "I apologize, but I'm having trouble connecting right now. Please try again later."
 
 def main():
@@ -115,8 +121,7 @@ def main():
         with st.chat_message(message["role"]):
             st.write(message["content"])
 
-    # Chat input
-    # Limit input length to prevent potential DoS/resource exhaustion
+    # Chat input with length limit for performance and security
     if prompt := st.chat_input("How are you feeling today?", max_chars=2000):
         # Add user message to chat
         st.session_state.messages.append({"role": "user", "content": prompt})
@@ -139,7 +144,8 @@ def main():
 
             # Get and display bot response
             with st.chat_message("assistant"):
-                response = get_bot_response(messages, selected_avatar)
+                with st.spinner(f"{selected_avatar} is thinking..."):
+                    response = get_bot_response(messages, selected_avatar)
                 st.write(response)
                 st.session_state.messages.append({"role": "assistant", "content": response})
 
@@ -152,4 +158,4 @@ def main():
     st.sidebar.write("- Emergency Services: 911")
 
 if __name__ == "__main__":
-    main() 
+    main()
