@@ -1,5 +1,7 @@
 import streamlit as st
 import os
+import logging
+import re
 from mistralai.client import MistralClient
 from mistralai.models.chat_completion import ChatMessage
 from dotenv import load_dotenv
@@ -7,6 +9,10 @@ import json
 
 # Load environment variables
 load_dotenv()
+
+# Configure logging
+logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 # Initialize Mistral client
 client = MistralClient(api_key=os.getenv("MISTRAL_API_KEY"))
@@ -42,16 +48,16 @@ AVATARS = {
     }
 }
 
-# Crisis detection keywords
+# Crisis detection keywords and regex
 CRISIS_KEYWORDS = [
-    "suicide", "kill myself", "end it all", "no reason to live",
+    "suicide", "kill myself", "end it all", "ending it all", "no reason to live",
     "want to die", "better off dead", "hurt myself"
 ]
+CRISIS_PATTERN = re.compile(r'|'.join(map(re.escape, CRISIS_KEYWORDS)), re.IGNORECASE)
 
 def detect_crisis(message):
-    """Detect if the message indicates a crisis situation."""
-    message_lower = message.lower()
-    return any(keyword in message_lower for keyword in CRISIS_KEYWORDS)
+    """Detect if the message indicates a crisis situation using regex."""
+    return bool(CRISIS_PATTERN.search(message))
 
 def get_crisis_response():
     """Return emergency resources and crisis response."""
@@ -75,7 +81,8 @@ def get_bot_response(messages, avatar):
         )
         return chat_response.choices[0].message.content
     except Exception as e:
-        return f"I apologize, but I'm having trouble connecting right now. Please try again later. Error: {str(e)}"
+        logger.error(f"Error getting bot response: {str(e)}", exc_info=True)
+        return "I apologize, but I'm having trouble connecting right now. Please try again later. If the issue persists, please contact support."
 
 def main():
     st.title("Mental Health Ease Bot")
@@ -108,7 +115,7 @@ def main():
             st.write(message["content"])
 
     # Chat input
-    if prompt := st.chat_input("How are you feeling today?"):
+    if prompt := st.chat_input("How are you feeling today?", max_chars=2000):
         # Add user message to chat
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
@@ -130,17 +137,21 @@ def main():
 
             # Get and display bot response
             with st.chat_message("assistant"):
-                response = get_bot_response(messages, selected_avatar)
-                st.write(response)
-                st.session_state.messages.append({"role": "assistant", "content": response})
+                with st.spinner("Compassionately thinking..."):
+                    response = get_bot_response(messages, selected_avatar)
+                    st.write(response)
+                    st.session_state.messages.append({"role": "assistant", "content": response})
 
     # Display emergency resources
     st.sidebar.markdown("---")
-    st.sidebar.subheader("Emergency Resources")
-    st.sidebar.write("If you're in crisis, please contact:")
-    st.sidebar.write("- National Suicide Prevention Lifeline: 988")
-    st.sidebar.write("- Crisis Text Line: Text HOME to 741741")
-    st.sidebar.write("- Emergency Services: 911")
+    st.sidebar.error("""
+        🚨 **Emergency Resources**
+
+        If you're in crisis, please contact:
+        - National Suicide Prevention Lifeline: [988](tel:988)
+        - Crisis Text Line: [Text HOME to 741741](sms:741741)
+        - Emergency Services: [911](tel:911)
+    """)
 
 if __name__ == "__main__":
     main() 
