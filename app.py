@@ -2,6 +2,13 @@ import streamlit as st
 import os
 import re
 import logging
+from mistralai.client import MistralClient
+from mistralai.models.chat_completion import ChatMessage
+from dotenv import load_dotenv
+
+# Configure logging
+logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 import json
 from mistralai.client import MistralClient
 from mistralai.models.chat_completion import ChatMessage
@@ -56,6 +63,7 @@ CRISIS_KEYWORDS = [
     "suicide", "kill myself", "end it all", "ending it all", "no reason to live",
     "want to die", "better off dead", "hurt myself"
 ]
+# Pre-compiled regex for faster crisis detection
 CRISIS_PATTERN = re.compile(r'|'.join(map(re.escape, CRISIS_KEYWORDS)), re.IGNORECASE)
 
 def detect_crisis(message):
@@ -88,6 +96,7 @@ def get_bot_response(messages, avatar):
         # Log the full error server-side for debugging
         logger.error(f"Error calling Mistral AI: {str(e)}", exc_info=True)
         # Return a generic error message to the user to prevent information leakage
+        return "I apologize, but I'm having trouble connecting right now. Please try again later."
         return "I apologize, but I'm having trouble connecting right now. Please try again later. If the issue persists, please contact support."
 
 def main():
@@ -114,6 +123,12 @@ def main():
 
     # Display avatar description
     st.sidebar.write(AVATARS[selected_avatar]["description"])
+
+    # Clear chat history button for privacy and security
+    st.sidebar.markdown("---")
+    if st.sidebar.button("Clear Chat History", help="Delete all messages and start a new conversation"):
+        st.session_state.messages = []
+        st.rerun()
 
     # Display chat messages
     for message in st.session_state.messages:
