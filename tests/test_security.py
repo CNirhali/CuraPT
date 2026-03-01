@@ -11,10 +11,6 @@ class TestSecurity(unittest.TestCase):
 
         # Set up the mock chat to raise an exception
         mock_client.chat.side_effect = Exception("Detailed internal database error connection string with password=123")
-    @patch('app.client.chat')
-    def test_get_bot_response_masks_errors(self, mock_chat):
-        # Set up the mock to raise an exception
-        mock_chat.side_effect = Exception("Detailed internal database error connection string with password=123")
 
         # Call the function
         messages = [{"role": "user", "content": "Hello"}]
