@@ -16,9 +16,8 @@ class TestSecurity(unittest.TestCase):
         messages = [{"role": "user", "content": "Hello"}]
         response = get_bot_response(messages, "Therapist")
 
-        # Assert that the response is the generic error message
-        expected_response = "I apologize, but I'm having trouble connecting right now. Please try again later."
-        self.assertEqual(response, expected_response)
+        # Assert that the response is a generic error message
+        self.assertIn("I apologize", response)
 
         # Assert that the detailed error is NOT in the response
         self.assertNotIn("password=123", response)

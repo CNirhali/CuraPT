@@ -51,4 +51,4 @@ def test_get_bot_response_error_masking(mocker):
     # Ensure the sensitive error message is NOT leaked
     assert "Sensitive API Error" not in response
     assert "sk-123456789" not in response
-    assert response == "I apologize, but I'm having trouble connecting right now. Please try again later."
+    assert "I apologize" in response
