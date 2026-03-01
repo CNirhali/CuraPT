@@ -3,9 +3,6 @@ from app import detect_crisis, get_bot_response, get_crisis_response
 from mistralai.models.chat_completion import ChatMessage
 
 def test_detect_crisis():
-from app import detect_crisis, get_crisis_response
-
-def test_detect_crisis():
     # Positive cases
     assert detect_crisis("I want to kill myself") == True
     assert detect_crisis("i feel like ending it all") == True

@@ -9,3 +9,7 @@
 ## 2026-02-28 - [Graceful Error Masking]
 **Learning:** Detailed technical stack traces in a UI can be confusing or distressing to users, especially in a sensitive context like mental health support. Masking these with compassionate, generic messages improves the emotional UX.
 **Action:** Implement server-side logging for debugging while ensuring the frontend displays a user-friendly fallback message.
+
+## 2026-03-01 - [Session Reset for Emotional UX]
+**Learning:** In chat-based support applications, especially those dealing with sensitive mental health topics, giving users a quick and obvious way to "start over" is crucial for privacy and emotional reset. A sidebar button with an explicit accessibility tooltip ("help" parameter in Streamlit) ensures that the action is both discoverable and well-defined.
+**Action:** Always provide a 'Clear History' mechanism in AI chat interfaces and use tooltips to explain the consequence of destructive UI actions.

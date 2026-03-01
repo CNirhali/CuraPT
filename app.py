@@ -2,18 +2,10 @@ import streamlit as st
 import os
 import re
 import logging
-import logging
-import re
-import re
-import logging
-from mistralai.client import MistralClient
-from mistralai.models.chat_completion import ChatMessage
-from dotenv import load_dotenv
 from mistralai.client import MistralClient
 from mistralai.models.chat_completion import ChatMessage
 from dotenv import load_dotenv
 import json
-import logging
 
 # Configure logging
 logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -22,13 +14,6 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 
-# Configure logging
-logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-
-# Cache the Mistral client to prevent re-initialization on every rerun
-@st.cache_resource
-def get_mistral_client():
 # Cache the Mistral client to prevent re-initialization on every rerun
 @st.cache_resource
 def get_mistral_client():
@@ -74,16 +59,8 @@ CRISIS_KEYWORDS = [
 # Pre-compiled regex for faster crisis detection
 CRISIS_PATTERN = re.compile(r'|'.join(map(re.escape, CRISIS_KEYWORDS)), re.IGNORECASE)
 
-# Pre-compiled regex for faster crisis detection
-CRISIS_PATTERN = re.compile("|".join(map(re.escape, CRISIS_KEYWORDS)), re.IGNORECASE)
-CRISIS_PATTERN = re.compile(r'|'.join(map(re.escape, CRISIS_KEYWORDS)), re.IGNORECASE)
-
-# Pre-compiled regex for faster crisis detection
-CRISIS_PATTERN = re.compile(r'|'.join(map(re.escape, CRISIS_KEYWORDS)), re.IGNORECASE)
-
 def detect_crisis(message):
     """Detect if the message indicates a crisis situation using regex."""
-    """Detect if the message indicates a crisis situation."""
     return bool(CRISIS_PATTERN.search(message))
 
 def get_crisis_response():
@@ -103,7 +80,6 @@ def get_bot_response(messages, avatar):
     """Get response from Mistral AI model."""
     client = get_mistral_client()
     try:
-        client = get_mistral_client()
         chat_response = client.chat(
             model="mistral-tiny",
             messages=messages
@@ -111,11 +87,8 @@ def get_bot_response(messages, avatar):
         return chat_response.choices[0].message.content
     except Exception as e:
         # Log the full error server-side for debugging
-        logger.error(f"Error calling Mistral AI: {str(e)}", exc_info=True)
-        # Return a generic error message to the user to prevent information leakage
         logger.error(f"Error in get_bot_response: {str(e)}", exc_info=True)
         # Return a generic error message to the user to prevent information leakage
-        return "I apologize, but I'm having trouble connecting right now. Please try again later. If the issue persists, please contact support."
         return "I apologize, but I'm having trouble connecting right now. Please try again later."
 
 def main():
@@ -142,6 +115,11 @@ def main():
 
     # Display avatar description
     st.sidebar.write(AVATARS[selected_avatar]["description"])
+
+    # Clear Chat History button
+    if st.sidebar.button("Clear Chat History", help="Delete all messages and start a new conversation"):
+        st.session_state.messages = []
+        st.rerun()
 
     # Display chat messages
     for message in st.session_state.messages:
