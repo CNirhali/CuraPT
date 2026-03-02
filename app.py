@@ -7,14 +7,6 @@ from mistralai.models.chat_completion import ChatMessage
 from dotenv import load_dotenv
 import json
 
-# Configure logging
-logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-import json
-from mistralai.client import MistralClient
-from mistralai.models.chat_completion import ChatMessage
-from dotenv import load_dotenv
-
 # Load environment variables
 load_dotenv()
 
@@ -37,7 +29,12 @@ AVATARS = {
         2. Help users develop coping strategies
         3. Encourage professional help when needed
         4. Maintain appropriate boundaries
-        5. Focus on evidence-based therapeutic approaches"""
+        5. Focus on evidence-based therapeutic approaches""",
+        "suggestions": [
+            "How can I deal with my anxiety?",
+            "I've been feeling low lately.",
+            "Can you help me with a coping strategy?"
+        ]
     },
     "Life Coach": {
         "description": "An energetic life coach focused on personal growth and achievement",
@@ -46,7 +43,12 @@ AVATARS = {
         2. Provide motivation and accountability
         3. Share practical strategies for self-improvement
         4. Focus on building confidence and resilience
-        5. Encourage positive thinking and action"""
+        5. Encourage positive thinking and action""",
+        "suggestions": [
+            "How can I stay motivated today?",
+            "I want to set some personal goals.",
+            "How can I build more resilience?"
+        ]
     },
     "Friend": {
         "description": "A supportive friend who listens and offers understanding",
@@ -55,7 +57,12 @@ AVATARS = {
         2. Listen actively and show empathy
         3. Share personal experiences when relevant
         4. Offer practical advice from a friend's perspective
-        5. Maintain a warm and casual conversation style"""
+        5. Maintain a warm and casual conversation style""",
+        "suggestions": [
+            "I just need someone to talk to.",
+            "I had a rough day at work.",
+            "Can you tell me something positive?"
+        ]
     }
 }
 
@@ -87,6 +94,7 @@ def get_crisis_response():
 def get_bot_response(messages, avatar):
     """Get response from Mistral AI model."""
     try:
+        client = get_mistral_client()
         chat_response = client.chat(
             model="mistral-tiny",
             messages=messages
@@ -95,10 +103,8 @@ def get_bot_response(messages, avatar):
     except Exception as e:
         # Log the full error server-side for debugging
         logger.error(f"Error in get_bot_response: {str(e)}", exc_info=True)
-        logger.error(f"Error calling Mistral AI: {str(e)}", exc_info=True)
         # Return a generic error message to the user to prevent information leakage
         return "I apologize, but I'm having trouble connecting right now. Please try again later."
-        return "I apologize, but I'm having trouble connecting right now. Please try again later. If the issue persists, please contact support."
 
 def main():
     st.title("Mental Health Ease Bot")
@@ -133,9 +139,21 @@ def main():
         st.rerun()
 
     # Display chat messages
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.write(message["content"])
+    if not st.session_state.messages:
+        # Welcome Screen for Empty State
+        st.info(f"Welcome! I'm your **{selected_avatar}**. How can I support you today?")
+        st.write("Click on a suggestion below or type your own message to start:")
+
+        # Display suggestion buttons in columns
+        cols = st.columns(len(AVATARS[selected_avatar]["suggestions"]))
+        for idx, suggestion in enumerate(AVATARS[selected_avatar]["suggestions"]):
+            if cols[idx].button(suggestion, use_container_width=True):
+                st.session_state.messages.append({"role": "user", "content": suggestion})
+                st.rerun()
+    else:
+        for message in st.session_state.messages:
+            with st.chat_message(message["role"]):
+                st.write(message["content"])
 
     # Chat input with length limit for performance and security
     if prompt := st.chat_input("How are you feeling today?", max_chars=2000):
