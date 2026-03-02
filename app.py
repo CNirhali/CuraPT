@@ -6,11 +6,15 @@ from mistralai.client import MistralClient
 from mistralai.models.chat_completion import ChatMessage
 from dotenv import load_dotenv
 import json
+import time
+from mistralai.client import MistralClient
+from mistralai.models.chat_completion import ChatMessage
+from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
 
-# Configure logging
+# Configure logging once at the application level
 logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -63,6 +67,15 @@ AVATARS = {
             "I had a rough day at work.",
             "Can you tell me something positive?"
         ]
+        "system_prompt": "You are a compassionate and professional therapist. Your role is to:\n1. Provide empathetic support and guidance\n2. Help users develop coping strategies\n3. Encourage professional help when needed\n4. Maintain appropriate boundaries\n5. Focus on evidence-based therapeutic approaches"
+    },
+    "Life Coach": {
+        "description": "An energetic life coach focused on personal growth and achievement",
+        "system_prompt": "You are an enthusiastic life coach. Your role is to:\n1. Help users set and achieve personal goals\n2. Provide motivation and accountability\n3. Share practical strategies for self-improvement\n4. Focus on building confidence and resilience\n5. Encourage positive thinking and action"
+    },
+    "Friend": {
+        "description": "A supportive friend who listens and offers understanding",
+        "system_prompt": "You are a caring and understanding friend. Your role is to:\n1. Provide emotional support and validation\n2. Listen actively and show empathy\n3. Share personal experiences when relevant\n4. Offer practical advice from a friend's perspective\n5. Maintain a warm and casual conversation style"
     }
 }
 
@@ -91,20 +104,28 @@ def get_crisis_response():
     Would you like me to help you connect with any of these resources?
     """
 
-def get_bot_response(messages, avatar):
-    """Get response from Mistral AI model."""
+def get_bot_response(messages):
+    """Get streaming response from Mistral AI model."""
     try:
         client = get_mistral_client()
         chat_response = client.chat(
+        if not client._api_key:
+            logger.error("Mistral API key is missing.")
+            yield "I'm sorry, but I'm not configured properly. Please check the API key."
+            return
+
+        for chunk in client.chat_stream(
             model="mistral-tiny",
             messages=messages
-        )
-        return chat_response.choices[0].message.content
+        ):
+            if chunk.choices[0].delta.content:
+                yield chunk.choices[0].delta.content
     except Exception as e:
         # Log the full error server-side for debugging
         logger.error(f"Error in get_bot_response: {str(e)}", exc_info=True)
         # Return a generic error message to the user to prevent information leakage
         return "I apologize, but I'm having trouble connecting right now. Please try again later."
+        yield "I apologize, but I'm having trouble connecting right now. Please try again later. If the issue persists, please contact support."
 
 def main():
     st.title("Mental Health Ease Bot")
@@ -115,6 +136,8 @@ def main():
         st.session_state.messages = []
     if "selected_avatar" not in st.session_state:
         st.session_state.selected_avatar = "Therapist"
+    if "last_message_time" not in st.session_state:
+        st.session_state.last_message_time = 0
 
     # Avatar selection
     st.sidebar.title("Choose Your Companion")
@@ -157,6 +180,15 @@ def main():
 
     # Chat input with length limit for performance and security
     if prompt := st.chat_input("How are you feeling today?", max_chars=2000):
+        # Implement a simple rate limiter to prevent DoS/API abuse
+        current_time = time.time()
+        time_since_last = current_time - st.session_state.last_message_time
+        if time_since_last < 2.0:
+            st.warning(f"Please wait {2.0 - time_since_last:.1f} more seconds before sending another message.")
+            return
+
+        st.session_state.last_message_time = current_time
+
         # Add user message to chat
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
@@ -179,12 +211,15 @@ def main():
             for msg in st.session_state.messages[-10:]:
                 messages.append(ChatMessage(role=msg["role"], content=msg["content"]))
 
-            # Get and display bot response
+            # Get and display bot response with streaming
             with st.chat_message("assistant"):
-                with st.spinner(f"{selected_avatar} is thinking..."):
-                    response = get_bot_response(messages, selected_avatar)
-                st.write(response)
-                st.session_state.messages.append({"role": "assistant", "content": response})
+                response_placeholder = st.empty()
+                full_response = ""
+                for response_chunk in get_bot_response(messages):
+                    full_response += response_chunk
+                    response_placeholder.markdown(full_response + "▌")
+                response_placeholder.markdown(full_response)
+                st.session_state.messages.append({"role": "assistant", "content": full_response})
 
     # Display emergency resources
     st.sidebar.markdown("---")
