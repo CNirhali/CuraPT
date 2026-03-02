@@ -27,28 +27,37 @@ def test_get_crisis_response():
 def test_get_bot_response_success(mocker):
     # Mock MistralClient
     mock_client = mocker.Mock()
-    mock_response = mocker.Mock()
-    mock_response.choices = [mocker.Mock(message=mocker.Mock(content="Hello! How can I help you?"))]
-    mock_client.chat.return_value = mock_response
+
+    # Mock chat_stream to return a generator of chunks
+    mock_chunk1 = mocker.Mock()
+    mock_chunk1.choices = [mocker.Mock(delta=mocker.Mock(content="Hello! "))]
+    mock_chunk2 = mocker.Mock()
+    mock_chunk2.choices = [mocker.Mock(delta=mocker.Mock(content="How can I help you?"))]
+
+    mock_client.chat_stream.return_value = [mock_chunk1, mock_chunk2]
 
     mocker.patch("app.get_mistral_client", return_value=mock_client)
 
     messages = [ChatMessage(role="user", content="Hello")]
-    response = get_bot_response(messages, "Therapist")
+    response_gen = get_bot_response(messages)
 
-    assert response == "Hello! How can I help you?"
+    response_content = "".join(list(response_gen))
+
+    assert response_content == "Hello! How can I help you?"
 
 def test_get_bot_response_error_masking(mocker):
     # Mock MistralClient to raise an exception
     mock_client = mocker.Mock()
-    mock_client.chat.side_effect = Exception("Sensitive API Error: sk-123456789")
+    mock_client.chat_stream.side_effect = Exception("Sensitive API Error: sk-123456789")
 
     mocker.patch("app.get_mistral_client", return_value=mock_client)
 
     messages = [ChatMessage(role="user", content="Hello")]
-    response = get_bot_response(messages, "Therapist")
+    response_gen = get_bot_response(messages)
+
+    response_content = "".join(list(response_gen))
 
     # Ensure the sensitive error message is NOT leaked
-    assert "Sensitive API Error" not in response
-    assert "sk-123456789" not in response
-    assert "I apologize" in response
+    assert "Sensitive API Error" not in response_content
+    assert "sk-123456789" not in response_content
+    assert "I apologize" in response_content
