@@ -9,12 +9,13 @@ class TestSecurity(unittest.TestCase):
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
 
-        # Set up the mock chat to raise an exception
-        mock_client.chat.side_effect = Exception("Detailed internal database error connection string with password=123")
+        # Set up the mock chat_stream to raise an exception
+        mock_client.chat_stream.side_effect = Exception("Detailed internal database error connection string with password=123")
 
         # Call the function
         messages = [{"role": "user", "content": "Hello"}]
-        response = get_bot_response(messages, "Therapist")
+        response_gen = get_bot_response(messages)
+        response = "".join(list(response_gen))
 
         # Assert that the response is a generic error message
         self.assertIn("I apologize", response)
