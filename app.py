@@ -2,15 +2,7 @@ import streamlit as st
 import os
 import re
 import logging
-from mistralai.client import MistralClient
-from mistralai.models.chat_completion import ChatMessage
-from dotenv import load_dotenv
-import json
-
-# Configure logging
-logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-import json
+import time
 from mistralai.client import MistralClient
 from mistralai.models.chat_completion import ChatMessage
 from dotenv import load_dotenv
@@ -18,7 +10,7 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# Configure logging
+# Configure logging once at the application level
 logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -87,6 +79,11 @@ def get_crisis_response():
 def get_bot_response(messages, avatar):
     """Get response from Mistral AI model."""
     try:
+        client = get_mistral_client()
+        if not client._api_key:
+             logger.error("Mistral API key is missing.")
+             return "I'm sorry, but I'm not configured properly. Please check the API key."
+
         chat_response = client.chat(
             model="mistral-tiny",
             messages=messages
@@ -95,9 +92,7 @@ def get_bot_response(messages, avatar):
     except Exception as e:
         # Log the full error server-side for debugging
         logger.error(f"Error in get_bot_response: {str(e)}", exc_info=True)
-        logger.error(f"Error calling Mistral AI: {str(e)}", exc_info=True)
         # Return a generic error message to the user to prevent information leakage
-        return "I apologize, but I'm having trouble connecting right now. Please try again later."
         return "I apologize, but I'm having trouble connecting right now. Please try again later. If the issue persists, please contact support."
 
 def main():
@@ -109,6 +104,8 @@ def main():
         st.session_state.messages = []
     if "selected_avatar" not in st.session_state:
         st.session_state.selected_avatar = "Therapist"
+    if "last_message_time" not in st.session_state:
+        st.session_state.last_message_time = 0
 
     # Avatar selection
     st.sidebar.title("Choose Your Companion")
@@ -139,6 +136,15 @@ def main():
 
     # Chat input with length limit for performance and security
     if prompt := st.chat_input("How are you feeling today?", max_chars=2000):
+        # Implement a simple rate limiter to prevent DoS/API abuse
+        current_time = time.time()
+        time_since_last = current_time - st.session_state.last_message_time
+        if time_since_last < 2.0:
+            st.warning(f"Please wait {2.0 - time_since_last:.1f} more seconds before sending another message.")
+            return
+
+        st.session_state.last_message_time = current_time
+
         # Add user message to chat
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
