@@ -3,9 +3,6 @@ import os
 import re
 import logging
 import time
-from mistralai.client import MistralClient
-from mistralai.models.chat_completion import ChatMessage
-from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
@@ -57,7 +54,8 @@ AVATAR_OPTIONS = list(AVATARS.keys())
 # Crisis detection keywords and pre-compiled regex for performance
 CRISIS_KEYWORDS = [
     "suicide", "kill myself", "end it all", "ending it all", "no reason to live",
-    "want to die", "better off dead", "hurt myself"
+    "want to die", "better off dead", "hurt myself", "take my life", "self-harm",
+    "don't want to be here anymore", "slit my wrists", "overdose"
 ]
 # Pre-compiled regex for faster crisis detection
 CRISIS_PATTERN = re.compile(r'|'.join(map(re.escape, CRISIS_KEYWORDS)), re.IGNORECASE)
