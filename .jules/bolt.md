@@ -7,5 +7,9 @@
 **Action:** Implement context windowing (truncation) for all LLM-backed chat features and periodically audit the main script for execution-blocking redundancies.
 
 ## 2025-05-17 - [Response Streaming for Perceived Performance]
-**Learning:** For LLM applications, Time To First Token (TTFT) is more critical for UX than total response time. Switching from synchronous `chat` to `chat_stream` and updating the UI in real-time provides immediate feedback, significantly reducing perceived latency. Additionally, cleaning up system prompts by removing leading whitespace (e.g., from multi-line strings) reduces unnecessary token consumption and improves model adherence.
+**Learning:** For LLM applications, Time To First Token (TTFT) is more critical for UX than total response time. Switching from synchronous `chat` to `chat_stream` and update the UI in real-time provides immediate feedback, significantly reducing perceived latency. Additionally, cleaning up system prompts by removing leading whitespace (e.g., from multi-line strings) reduces unnecessary token consumption and improves model adherence.
 **Action:** Always implement streaming for LLM-backed chat interfaces and ensure system prompts are trimmed of unnecessary whitespace/tokens.
+
+## 2026-03-03 - [Static Constant Pre-calculation in Streamlit]
+**Learning:** In Streamlit's "run on every interaction" execution model, module-level pre-calculation of static values (like dictionary keys or list comprehensions for stable configurations) is significantly more efficient than re-calculating them inside the main loop or UI components. This reduces CPU overhead per rerun.
+**Action:** Move all static data transformations and configuration extractions to the module level.

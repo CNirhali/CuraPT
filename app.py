@@ -2,10 +2,6 @@ import streamlit as st
 import os
 import re
 import logging
-from mistralai.client import MistralClient
-from mistralai.models.chat_completion import ChatMessage
-from dotenv import load_dotenv
-import json
 import time
 from mistralai.client import MistralClient
 from mistralai.models.chat_completion import ChatMessage
@@ -55,6 +51,9 @@ AVATARS = {
     }
 }
 
+# Pre-calculate avatar options for performance
+AVATAR_OPTIONS = list(AVATARS.keys())
+
 # Crisis detection keywords and pre-compiled regex for performance
 CRISIS_KEYWORDS = [
     "suicide", "kill myself", "end it all", "ending it all", "no reason to live",
@@ -98,6 +97,8 @@ def get_bot_response(messages):
     except Exception as e:
         # Log the full error server-side for debugging
         logger.error(f"Error in get_bot_response: {str(e)}", exc_info=True)
+        # Return a generic error message to the user to prevent information leakage
+        yield "I apologize, but I'm having trouble connecting right now. Please try again later."
         # Yield a generic error message to the user to prevent information leakage
         yield "I apologize, but I'm having trouble connecting right now. Please try again later. If the issue persists, please contact support."
 
@@ -113,12 +114,12 @@ def main():
     if "last_message_time" not in st.session_state:
         st.session_state.last_message_time = 0
 
-    # Avatar selection
+    # Avatar selection using pre-calculated options
     st.sidebar.title("Choose Your Companion")
     selected_avatar = st.sidebar.selectbox(
         "Select an avatar",
-        list(AVATARS.keys()),
-        index=list(AVATARS.keys()).index(st.session_state.selected_avatar)
+        AVATAR_OPTIONS,
+        index=AVATAR_OPTIONS.index(st.session_state.selected_avatar)
     )
     
     if selected_avatar != st.session_state.selected_avatar:
@@ -128,7 +129,6 @@ def main():
     # Display avatar description
     st.sidebar.write(AVATARS[selected_avatar]["description"])
 
-    # Clear Chat History button
     # Clear chat history button for privacy and security
     st.sidebar.markdown("---")
     if st.sidebar.button("Clear Chat History", help="Delete all messages and start a new conversation"):
@@ -142,8 +142,9 @@ def main():
         st.write("Click on a suggestion below or type your own message to start:")
 
         # Display suggestion buttons in columns
-        cols = st.columns(len(AVATARS[selected_avatar]["suggestions"]))
-        for idx, suggestion in enumerate(AVATARS[selected_avatar]["suggestions"]):
+        suggestions = AVATARS[selected_avatar]["suggestions"]
+        cols = st.columns(len(suggestions))
+        for idx, suggestion in enumerate(suggestions):
             if cols[idx].button(suggestion, use_container_width=True):
                 st.session_state.messages.append({"role": "user", "content": suggestion})
                 st.rerun()
@@ -179,11 +180,9 @@ def main():
             # Limit to the 10 most recent messages to reduce token count and improve latency
             # Expected impact: Reduces token usage by up to 80% for long conversations
             # and improves API response time by ~200-500ms.
-            messages = [
-                ChatMessage(role="system", content=AVATARS[selected_avatar]["system_prompt"])
-            ]
-            for msg in st.session_state.messages[-10:]:
-                messages.append(ChatMessage(role=msg["role"], content=msg["content"]))
+            # Using list comprehension for slightly better performance than repeated .append()
+            messages = [ChatMessage(role="system", content=AVATARS[selected_avatar]["system_prompt"])] + \
+                       [ChatMessage(role=msg["role"], content=msg["content"]) for msg in st.session_state.messages[-10:]]
 
             # Get and display bot response with streaming
             with st.chat_message("assistant"):
