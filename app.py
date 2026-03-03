@@ -28,12 +28,7 @@ def get_mistral_client():
 AVATARS = {
     "Therapist": {
         "description": "A compassionate therapist who provides professional guidance and support",
-        "system_prompt": """You are a compassionate and professional therapist. Your role is to:
-        1. Provide empathetic support and guidance
-        2. Help users develop coping strategies
-        3. Encourage professional help when needed
-        4. Maintain appropriate boundaries
-        5. Focus on evidence-based therapeutic approaches""",
+        "system_prompt": "You are a compassionate and professional therapist. Your role is to:\n1. Provide empathetic support and guidance\n2. Help users develop coping strategies\n3. Encourage professional help when needed\n4. Maintain appropriate boundaries\n5. Focus on evidence-based therapeutic approaches",
         "suggestions": [
             "How can I deal with my anxiety?",
             "I've been feeling low lately.",
@@ -42,12 +37,7 @@ AVATARS = {
     },
     "Life Coach": {
         "description": "An energetic life coach focused on personal growth and achievement",
-        "system_prompt": """You are an enthusiastic life coach. Your role is to:
-        1. Help users set and achieve personal goals
-        2. Provide motivation and accountability
-        3. Share practical strategies for self-improvement
-        4. Focus on building confidence and resilience
-        5. Encourage positive thinking and action""",
+        "system_prompt": "You are an enthusiastic life coach. Your role is to:\n1. Help users set and achieve personal goals\n2. Provide motivation and accountability\n3. Share practical strategies for self-improvement\n4. Focus on building confidence and resilience\n5. Encourage positive thinking and action",
         "suggestions": [
             "How can I stay motivated today?",
             "I want to set some personal goals.",
@@ -56,26 +46,12 @@ AVATARS = {
     },
     "Friend": {
         "description": "A supportive friend who listens and offers understanding",
-        "system_prompt": """You are a caring and understanding friend. Your role is to:
-        1. Provide emotional support and validation
-        2. Listen actively and show empathy
-        3. Share personal experiences when relevant
-        4. Offer practical advice from a friend's perspective
-        5. Maintain a warm and casual conversation style""",
+        "system_prompt": "You are a caring and understanding friend. Your role is to:\n1. Provide emotional support and validation\n2. Listen actively and show empathy\n3. Share personal experiences when relevant\n4. Offer practical advice from a friend's perspective\n5. Maintain a warm and casual conversation style",
         "suggestions": [
             "I just need someone to talk to.",
             "I had a rough day at work.",
             "Can you tell me something positive?"
         ]
-        "system_prompt": "You are a compassionate and professional therapist. Your role is to:\n1. Provide empathetic support and guidance\n2. Help users develop coping strategies\n3. Encourage professional help when needed\n4. Maintain appropriate boundaries\n5. Focus on evidence-based therapeutic approaches"
-    },
-    "Life Coach": {
-        "description": "An energetic life coach focused on personal growth and achievement",
-        "system_prompt": "You are an enthusiastic life coach. Your role is to:\n1. Help users set and achieve personal goals\n2. Provide motivation and accountability\n3. Share practical strategies for self-improvement\n4. Focus on building confidence and resilience\n5. Encourage positive thinking and action"
-    },
-    "Friend": {
-        "description": "A supportive friend who listens and offers understanding",
-        "system_prompt": "You are a caring and understanding friend. Your role is to:\n1. Provide emotional support and validation\n2. Listen actively and show empathy\n3. Share personal experiences when relevant\n4. Offer practical advice from a friend's perspective\n5. Maintain a warm and casual conversation style"
     }
 }
 
@@ -96,9 +72,9 @@ def get_crisis_response():
     return """
     I'm concerned about your safety. Please know that you're not alone, and help is available:
     
-    1. National Suicide Prevention Lifeline: 988
-    2. Crisis Text Line: Text HOME to 741741
-    3. Emergency Services: 911
+    1. **National Suicide Prevention Lifeline**: [988](tel:988)
+    2. **Crisis Text Line**: [Text HOME to 741741](sms:741741)
+    3. **Emergency Services**: [911](tel:911)
     
     These services are available 24/7 and are free and confidential.
     Would you like me to help you connect with any of these resources?
@@ -108,7 +84,6 @@ def get_bot_response(messages):
     """Get streaming response from Mistral AI model."""
     try:
         client = get_mistral_client()
-        chat_response = client.chat(
         if not client._api_key:
             logger.error("Mistral API key is missing.")
             yield "I'm sorry, but I'm not configured properly. Please check the API key."
@@ -123,8 +98,7 @@ def get_bot_response(messages):
     except Exception as e:
         # Log the full error server-side for debugging
         logger.error(f"Error in get_bot_response: {str(e)}", exc_info=True)
-        # Return a generic error message to the user to prevent information leakage
-        return "I apologize, but I'm having trouble connecting right now. Please try again later."
+        # Yield a generic error message to the user to prevent information leakage
         yield "I apologize, but I'm having trouble connecting right now. Please try again later. If the issue persists, please contact support."
 
 def main():
