@@ -13,3 +13,7 @@
 ## 2026-03-01 - [Session Reset for Emotional UX]
 **Learning:** In chat-based support applications, especially those dealing with sensitive mental health topics, giving users a quick and obvious way to "start over" is crucial for privacy and emotional reset. A sidebar button with an explicit accessibility tooltip ("help" parameter in Streamlit) ensures that the action is both discoverable and well-defined.
 **Action:** Always provide a 'Clear History' mechanism in AI chat interfaces and use tooltips to explain the consequence of destructive UI actions.
+
+## 2026-03-03 - [Actionable Crisis Links in Chat]
+**Learning:** While sidebar resources are helpful, users in distress often focus on the immediate conversational feedback. Embedding actionable `tel:` and `sms:` links directly within the AI's crisis response ensures that help is accessible at the exact moment it's needed most.
+**Action:** Ensure all bot-generated emergency resource lists use markdown protocols for direct calling/messaging.
