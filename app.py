@@ -71,9 +71,9 @@ def get_crisis_response():
     return """
     I'm concerned about your safety. Please know that you're not alone, and help is available:
     
-    1. National Suicide Prevention Lifeline: 988
-    2. Crisis Text Line: Text HOME to 741741
-    3. Emergency Services: 911
+    1. **National Suicide Prevention Lifeline**: [988](tel:988)
+    2. **Crisis Text Line**: [Text HOME to 741741](sms:741741)
+    3. **Emergency Services**: [911](tel:911)
     
     These services are available 24/7 and are free and confidential.
     Would you like me to help you connect with any of these resources?
@@ -99,6 +99,8 @@ def get_bot_response(messages):
         logger.error(f"Error in get_bot_response: {str(e)}", exc_info=True)
         # Return a generic error message to the user to prevent information leakage
         yield "I apologize, but I'm having trouble connecting right now. Please try again later."
+        # Yield a generic error message to the user to prevent information leakage
+        yield "I apologize, but I'm having trouble connecting right now. Please try again later. If the issue persists, please contact support."
 
 def main():
     st.title("Mental Health Ease Bot")
