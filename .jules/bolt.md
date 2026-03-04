@@ -13,3 +13,7 @@
 ## 2026-03-03 - [Static Constant Pre-calculation in Streamlit]
 **Learning:** In Streamlit's "run on every interaction" execution model, module-level pre-calculation of static values (like dictionary keys or list comprehensions for stable configurations) is significantly more efficient than re-calculating them inside the main loop or UI components. This reduces CPU overhead per rerun.
 **Action:** Move all static data transformations and configuration extractions to the module level.
+
+## 2026-03-04 - [Token Buffering and History Capping]
+**Learning:** Updating the Streamlit UI (via `st.markdown`) for every token in a stream causes significant websocket overhead and browser rerender lag. Buffering tokens and updating the UI every 5-10 chunks provides a much smoother experience. Additionally, capping `st.session_state.messages` to a fixed size (e.g., 50) is essential to prevent linear performance degradation in Streamlit's "render everything" model.
+**Action:** Always implement token buffering in streaming loops and maintain a bounded session state for long-running chat applications.
