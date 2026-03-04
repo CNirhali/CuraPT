@@ -17,3 +17,7 @@
 ## 2026-03-03 - [Actionable Crisis Links in Chat]
 **Learning:** While sidebar resources are helpful, users in distress often focus on the immediate conversational feedback. Embedding actionable `tel:` and `sms:` links directly within the AI's crisis response ensures that help is accessible at the exact moment it's needed most.
 **Action:** Ensure all bot-generated emergency resource lists use markdown protocols for direct calling/messaging.
+
+## 2026-03-05 - [Persona-Specific Chat Icons]
+**Learning:** In multi-persona AI applications, using unique emoji icons for assistant messages significantly improves visual hierarchy and reinforces the chosen companion's identity. Streamlit's `st.chat_message` supports an `avatar` parameter that can be easily mapped to a configuration dictionary.
+**Action:** Always include a unique `icon` or `avatar` field in persona definitions and use it to distinguish different AI roles in the conversation history.
