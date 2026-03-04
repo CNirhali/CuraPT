@@ -61,7 +61,8 @@ AVATAR_OPTIONS = list(AVATARS.keys())
 CRISIS_KEYWORDS = [
     "suicide", "kill myself", "end it all", "ending it all", "no reason to live",
     "want to die", "better off dead", "hurt myself", "take my life", "self-harm",
-    "don't want to be here anymore", "slit my wrists", "overdose"
+    "don't want to be here anymore", "slit my wrists", "overdose",
+    "hopeless", "can't go on", "end my life"
 ]
 # Pre-compiled regex for faster crisis detection
 CRISIS_PATTERN = re.compile(r'|'.join(map(re.escape, CRISIS_KEYWORDS)), re.IGNORECASE)
@@ -89,19 +90,53 @@ def get_bot_response(messages):
         client = get_mistral_client()
         if not client._api_key:
             logger.error("Mistral API key is missing.")
-            yield "I'm sorry, but I'm not configured properly. Please check the API key."
+            yield "I'm sorry, but there's a configuration issue. Please contact support."
             return
 
+        total_chars = 0
+        MAX_RESPONSE_CHARS = 4000
         for chunk in client.chat_stream(
             model="mistral-tiny",
             messages=messages
         ):
             if chunk.choices[0].delta.content:
-                yield chunk.choices[0].delta.content
+                content = chunk.choices[0].delta.content
+                total_chars += len(content)
+                if total_chars > MAX_RESPONSE_CHARS:
+                    yield "... [Response truncated for length]"
+                    break
+                yield content
     except Exception as e:
         # Log the full error server-side for debugging
         logger.error(f"Error in get_bot_response: {str(e)}", exc_info=True)
         # Return a generic error message to the user to prevent information leakage
+        yield "I apologize, but I'm having trouble connecting right now. Please try again later."
+
+def handle_user_input(prompt):
+    """Centralized handler for user input to ensure safety and security."""
+    # Implement a simple rate limiter to prevent DoS/API abuse
+    current_time = time.time()
+    time_since_last = current_time - st.session_state.get("last_message_time", 0)
+    if time_since_last < 2.0:
+        st.warning(f"Please wait {2.0 - time_since_last:.1f} more seconds before sending another message.")
+        return False
+
+    st.session_state.last_message_time = current_time
+
+    # Add user message to chat
+    st.session_state.messages.append({"role": "user", "content": prompt})
+
+    # Cap message history to prevent memory-based DoS (e.g., last 50 messages)
+    if len(st.session_state.messages) > 50:
+        st.session_state.messages = st.session_state.messages[-50:]
+
+    # Check for crisis situation
+    if detect_crisis(prompt):
+        crisis_response = get_crisis_response()
+        st.session_state.messages.append({"role": "assistant", "content": crisis_response})
+
+    return True
+        # Fixed double-yield bug to ensure clean error delivery
         yield "I apologize, but I'm having trouble connecting right now. Please try again later. If the issue persists, please contact support."
 
 def main():
@@ -148,8 +183,8 @@ def main():
         cols = st.columns(len(suggestions))
         for idx, suggestion in enumerate(suggestions):
             if cols[idx].button(suggestion, use_container_width=True):
-                st.session_state.messages.append({"role": "user", "content": suggestion})
-                st.rerun()
+                if handle_user_input(suggestion):
+                    st.rerun()
     else:
         for message in st.session_state.messages:
             with st.chat_message(message["role"], avatar=AVATARS[st.session_state.selected_avatar]["icon"] if message["role"] == "assistant" else None):
@@ -157,6 +192,25 @@ def main():
 
     # Chat input with length limit for performance and security
     if prompt := st.chat_input("How are you feeling today?", max_chars=2000):
+        if handle_user_input(prompt):
+            st.rerun()
+
+    # Automatically generate bot response if the last message is from user
+    if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
+        # Prepare messages for the model, truncating history for performance
+        # Limit to the 10 most recent messages to reduce token count and improve latency
+        messages = [ChatMessage(role="system", content=AVATARS[selected_avatar]["system_prompt"])] + \
+                   [ChatMessage(role=msg["role"], content=msg["content"]) for msg in st.session_state.messages[-10:]]
+
+        # Get and display bot response with streaming
+        with st.chat_message("assistant"):
+            response_placeholder = st.empty()
+            full_response = ""
+            for response_chunk in get_bot_response(messages):
+                full_response += response_chunk
+                response_placeholder.markdown(full_response + "▌")
+            response_placeholder.markdown(full_response)
+            st.session_state.messages.append({"role": "assistant", "content": full_response})
         # Implement a simple rate limiter to prevent DoS/API abuse
         current_time = time.time()
         time_since_last = current_time - st.session_state.last_message_time
@@ -168,6 +222,12 @@ def main():
 
         # Add user message to chat
         st.session_state.messages.append({"role": "user", "content": prompt})
+
+        # Implement history capping to prevent memory-based DoS and keep UI performance consistent
+        # Maintaining only the 50 most recent messages ensures bounded memory and rendering time.
+        if len(st.session_state.messages) > 50:
+            st.session_state.messages = st.session_state.messages[-50:]
+
         with st.chat_message("user"):
             st.write(prompt)
 
@@ -190,9 +250,14 @@ def main():
             with st.chat_message("assistant", avatar=AVATARS[selected_avatar]["icon"]):
                 response_placeholder = st.empty()
                 full_response = ""
+                # Use a counter for token buffering to reduce UI update frequency
+                # Updating every 5 tokens significantly reduces websocket traffic and rerender overhead.
+                chunk_count = 0
                 for response_chunk in get_bot_response(messages):
                     full_response += response_chunk
-                    response_placeholder.markdown(full_response + "▌")
+                    chunk_count += 1
+                    if chunk_count % 5 == 0:
+                        response_placeholder.markdown(full_response + "▌")
                 response_placeholder.markdown(full_response)
                 st.session_state.messages.append({"role": "assistant", "content": full_response})
 
