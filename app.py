@@ -23,6 +23,7 @@ def get_mistral_client():
 # Define avatars and their personalities
 AVATARS = {
     "Therapist": {
+        "icon": "🧘",
         "description": "A compassionate therapist who provides professional guidance and support",
         "system_prompt": "You are a compassionate and professional therapist. Your role is to:\n1. Provide empathetic support and guidance\n2. Help users develop coping strategies\n3. Encourage professional help when needed\n4. Maintain appropriate boundaries\n5. Focus on evidence-based therapeutic approaches",
         "suggestions": [
@@ -32,6 +33,7 @@ AVATARS = {
         ]
     },
     "Life Coach": {
+        "icon": "⚡",
         "description": "An energetic life coach focused on personal growth and achievement",
         "system_prompt": "You are an enthusiastic life coach. Your role is to:\n1. Help users set and achieve personal goals\n2. Provide motivation and accountability\n3. Share practical strategies for self-improvement\n4. Focus on building confidence and resilience\n5. Encourage positive thinking and action",
         "suggestions": [
@@ -41,6 +43,7 @@ AVATARS = {
         ]
     },
     "Friend": {
+        "icon": "🤗",
         "description": "A supportive friend who listens and offers understanding",
         "system_prompt": "You are a caring and understanding friend. Your role is to:\n1. Provide emotional support and validation\n2. Listen actively and show empathy\n3. Share personal experiences when relevant\n4. Offer practical advice from a friend's perspective\n5. Maintain a warm and casual conversation style",
         "suggestions": [
@@ -184,7 +187,7 @@ def main():
                     st.rerun()
     else:
         for message in st.session_state.messages:
-            with st.chat_message(message["role"]):
+            with st.chat_message(message["role"], avatar=AVATARS[st.session_state.selected_avatar]["icon"] if message["role"] == "assistant" else None):
                 st.write(message["content"])
 
     # Chat input with length limit for performance and security
@@ -232,7 +235,7 @@ def main():
         if detect_crisis(prompt):
             crisis_response = get_crisis_response()
             st.session_state.messages.append({"role": "assistant", "content": crisis_response})
-            with st.chat_message("assistant"):
+            with st.chat_message("assistant", avatar=AVATARS[selected_avatar]["icon"]):
                 st.write(crisis_response)
         else:
             # Prepare messages for the model, truncating history for performance
@@ -244,7 +247,7 @@ def main():
                        [ChatMessage(role=msg["role"], content=msg["content"]) for msg in st.session_state.messages[-10:]]
 
             # Get and display bot response with streaming
-            with st.chat_message("assistant"):
+            with st.chat_message("assistant", avatar=AVATARS[selected_avatar]["icon"]):
                 response_placeholder = st.empty()
                 full_response = ""
                 # Use a counter for token buffering to reduce UI update frequency
