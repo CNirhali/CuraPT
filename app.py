@@ -3,6 +3,9 @@ import os
 import re
 import logging
 import time
+from dotenv import load_dotenv
+from mistralai.client import MistralClient
+from mistralai.models.chat_completion import ChatMessage
 
 # Load environment variables
 load_dotenv()
@@ -96,8 +99,7 @@ def get_bot_response(messages):
         # Log the full error server-side for debugging
         logger.error(f"Error in get_bot_response: {str(e)}", exc_info=True)
         # Return a generic error message to the user to prevent information leakage
-        yield "I apologize, but I'm having trouble connecting right now. Please try again later."
-        # Yield a generic error message to the user to prevent information leakage
+        # Fixed double-yield bug to ensure clean error delivery
         yield "I apologize, but I'm having trouble connecting right now. Please try again later. If the issue persists, please contact support."
 
 def main():
@@ -164,6 +166,12 @@ def main():
 
         # Add user message to chat
         st.session_state.messages.append({"role": "user", "content": prompt})
+
+        # Implement history capping to prevent memory-based DoS and keep UI performance consistent
+        # Maintaining only the 50 most recent messages ensures bounded memory and rendering time.
+        if len(st.session_state.messages) > 50:
+            st.session_state.messages = st.session_state.messages[-50:]
+
         with st.chat_message("user"):
             st.write(prompt)
 
@@ -186,9 +194,14 @@ def main():
             with st.chat_message("assistant"):
                 response_placeholder = st.empty()
                 full_response = ""
+                # Use a counter for token buffering to reduce UI update frequency
+                # Updating every 5 tokens significantly reduces websocket traffic and rerender overhead.
+                chunk_count = 0
                 for response_chunk in get_bot_response(messages):
                     full_response += response_chunk
-                    response_placeholder.markdown(full_response + "▌")
+                    chunk_count += 1
+                    if chunk_count % 5 == 0:
+                        response_placeholder.markdown(full_response + "▌")
                 response_placeholder.markdown(full_response)
                 st.session_state.messages.append({"role": "assistant", "content": full_response})
 
