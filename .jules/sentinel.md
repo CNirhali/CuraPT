@@ -3,6 +3,7 @@
 **Vulnerability:** Information Leakage and potential Denial of Service (DoS).
 **Learning:** Returning raw exception strings directly to the frontend can expose sensitive internal state, such as API keys or stack traces. Additionally, unrestricted input length can lead to resource exhaustion.
 **Prevention:** Always catch exceptions at the edge and return generic, user-friendly messages while logging the detailed error server-side. Use `max_chars` on Streamlit `chat_input` to limit input size.
+
 ## 2026-02-28 - [Information Leakage in Error Messages]
 **Vulnerability:** Displaying detailed exception messages and stack traces in the UI can expose sensitive information about the application's environment, dependencies, and internal logic.
 **Fix:** Implement a robust error handling pattern that logs the full exception details on the server while returning a generic, non-informative error message to the user.
@@ -12,3 +13,8 @@
 **Vulnerability:** Allowing unlimited input length in chat interfaces can lead to resource exhaustion on the server and potentially incur high API costs or cause Denial of Service (DoS).
 **Fix:** Enforce a reasonable maximum character limit on all user inputs (e.g., using `max_chars` in `st.chat_input`).
 **Impact:** Ensures application stability and protects against malicious or accidental resource abuse.
+
+## 2026-03-01 - [Resource Exhaustion Protection and Safety Unified]
+**Vulnerability:** Unbounded session state (message history) and unrestricted bot response length could lead to memory exhaustion and resource-based DoS. Additionally, inconsistent safety checks between chat input and suggestion buttons created a safety bypass.
+**Fix:** Implemented centralized `handle_user_input` with rate limiting (2s) and message history capping (50 messages). Added `MAX_RESPONSE_CHARS` limit to `get_bot_response`. Unified all input entry points to use the safety wrapper.
+**Impact:** Protects against DoS attacks targeting server memory and API tokens, while ensuring all user interactions are screened for safety.
