@@ -14,6 +14,13 @@ load_dotenv()
 logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+def sanitize_error(message):
+    """Redact sensitive information like API keys from error messages."""
+    if not isinstance(message, str):
+        message = str(message)
+    # Mask Mistral API keys: sk-[a-zA-Z0-9]+
+    return re.sub(r'sk-[a-zA-Z0-9]+', '[REDACTED_API_KEY]', message)
+
 # Cache the Mistral client to prevent re-initialization on every rerun
 @st.cache_resource
 def get_mistral_client():
@@ -97,7 +104,7 @@ def get_bot_response(messages):
     try:
         client = get_mistral_client()
         if not client._api_key:
-            logger.error("Mistral API key is missing.")
+            logger.error(sanitize_error("Mistral API key is missing."))
             yield "I'm sorry, but there's a configuration issue. Please contact support."
             return
 
@@ -116,7 +123,7 @@ def get_bot_response(messages):
                 yield content
     except Exception as e:
         # Log the full error server-side for debugging
-        logger.error(f"Error in get_bot_response: {str(e)}", exc_info=True)
+        logger.error(sanitize_error(f"Error in get_bot_response: {str(e)}"), exc_info=True)
         # Return a generic error message to the user to prevent information leakage
         yield "I apologize, but I'm having trouble connecting right now. Please try again later."
 
@@ -209,6 +216,11 @@ def main():
         messages = [SYSTEM_MESSAGES[selected_avatar]] + st.session_state.messages[-10:]
 
         # Get and display bot response with streaming
+        with st.chat_message("assistant", avatar=AVATARS[selected_avatar]["icon"]):
+            response_placeholder = st.empty()
+            full_response = ""
+            # Use a counter for token buffering to reduce UI update frequency
+            # Updating every 5 tokens significantly reduces websocket traffic and rerender overhead.
         with st.chat_message("assistant", avatar=AVATAR_ICONS[selected_avatar]):
             response_placeholder = st.empty()
             full_response = ""
@@ -220,6 +232,7 @@ def main():
                 if chunk_count % 5 == 0:
                     response_placeholder.markdown(full_response + "▌")
             response_placeholder.markdown(full_response)
+            st.session_state.messages.append({"role": "assistant", "content": full_response})
             st.session_state.messages.append(ChatMessage(role="assistant", content=full_response))
 
     # Display emergency resources
