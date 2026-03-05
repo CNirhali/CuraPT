@@ -1,6 +1,7 @@
 import pytest
-from app import detect_crisis, get_bot_response, get_crisis_response
+from app import detect_crisis, get_bot_response, get_crisis_response, handle_user_input
 from mistralai.models.chat_completion import ChatMessage
+import streamlit as st
 
 def test_detect_crisis():
     # Positive cases
@@ -61,3 +62,56 @@ def test_get_bot_response_error_masking(mocker):
     assert "Sensitive API Error" not in response_content
     assert "sk-123456789" not in response_content
     assert "I apologize" in response_content
+
+def test_handle_user_input_stores_chatmessage_objects(mocker):
+    # Mock streamlit session state with an object that supports both dict and attribute access
+    class MockState:
+        def __init__(self):
+            self.messages = []
+            self.last_message_time = 0
+        def get(self, k, d):
+            return getattr(self, k, d)
+        def __getitem__(self, k):
+            return getattr(self, k)
+
+    mock_state = MockState()
+    mocker.patch.object(st, "session_state", mock_state)
+
+    prompt = "Hello"
+    result = handle_user_input(prompt)
+
+    assert result == True
+    assert len(st.session_state["messages"]) == 1
+    msg = st.session_state["messages"][0]
+    assert isinstance(msg, ChatMessage)
+    assert msg.role == "user"
+    assert msg.content == prompt
+
+def test_handle_user_input_crisis_stores_chatmessage_objects(mocker):
+    # Mock streamlit session state with an object that supports both dict and attribute access
+    class MockState:
+        def __init__(self):
+            self.messages = []
+            self.last_message_time = 0
+        def get(self, k, d):
+            return getattr(self, k, d)
+        def __getitem__(self, k):
+            return getattr(self, k)
+
+    mock_state = MockState()
+    mocker.patch.object(st, "session_state", mock_state)
+
+    prompt = "I want to kill myself"
+    result = handle_user_input(prompt)
+
+    assert result == True
+    assert len(st.session_state["messages"]) == 2
+    user_msg = st.session_state["messages"][0]
+    assistant_msg = st.session_state["messages"][1]
+
+    assert isinstance(user_msg, ChatMessage)
+    assert user_msg.role == "user"
+
+    assert isinstance(assistant_msg, ChatMessage)
+    assert assistant_msg.role == "assistant"
+    assert "988" in assistant_msg.content
