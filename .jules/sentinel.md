@@ -18,3 +18,8 @@
 **Vulnerability:** Unbounded session state (message history) and unrestricted bot response length could lead to memory exhaustion and resource-based DoS. Additionally, inconsistent safety checks between chat input and suggestion buttons created a safety bypass.
 **Fix:** Implemented centralized `handle_user_input` with rate limiting (2s) and message history capping (50 messages). Added `MAX_RESPONSE_CHARS` limit to `get_bot_response`. Unified all input entry points to use the safety wrapper.
 **Impact:** Protects against DoS attacks targeting server memory and API tokens, while ensuring all user interactions are screened for safety.
+
+## 2026-03-01 - [Sensitive Data Leakage in Server Logs]
+**Vulnerability:** Potential leakage of API keys and other sensitive credentials into server-side logs during error handling.
+**Learning:** Even when errors are masked from the frontend, logging the raw exception message can inadvertently store secrets in persistent log files, which may be accessible to unauthorized personnel or systems.
+**Prevention:** Implement a `sanitize_error` utility to redact sensitive patterns (like API keys) from error messages before they are passed to the logger.
