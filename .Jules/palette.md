@@ -21,3 +21,7 @@
 ## 2026-03-05 - [Persona-Specific Chat Icons]
 **Learning:** In multi-persona AI applications, using unique emoji icons for assistant messages significantly improves visual hierarchy and reinforces the chosen companion's identity. Streamlit's `st.chat_message` supports an `avatar` parameter that can be easily mapped to a configuration dictionary.
 **Action:** Always include a unique `icon` or `avatar` field in persona definitions and use it to distinguish different AI roles in the conversation history.
+
+## 2026-03-06 - [Non-blocking Feedback and Conversational Onboarding]
+**Learning:** Using `st.toast` for temporary, non-critical notifications (like rate limits) provides a much smoother UX than static warning blocks that shift the layout. Additionally, replacing static info boxes with conversational `st.chat_message` components for welcome messages makes the AI feel more present and engaging from the first interaction.
+**Action:** Prioritize `st.toast` for transient feedback and use persona-aligned chat components for empty states to reinforce the conversational nature of the app.

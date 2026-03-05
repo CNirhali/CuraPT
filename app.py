@@ -107,37 +107,30 @@ def get_bot_response(messages):
                     break
                 yield content
     except Exception as e:
-        # Log the full error server-side for debugging
         logger.error(f"Error in get_bot_response: {str(e)}", exc_info=True)
-        # Return a generic error message to the user to prevent information leakage
         yield "I apologize, but I'm having trouble connecting right now. Please try again later."
 
 def handle_user_input(prompt):
-    """Centralized handler for user input to ensure safety and security."""
-    # Implement a simple rate limiter to prevent DoS/API abuse
+    """Update state with user input and check for crisis. Returns (success, is_crisis)."""
     current_time = time.time()
     time_since_last = current_time - st.session_state.get("last_message_time", 0)
     if time_since_last < 2.0:
-        st.warning(f"Please wait {2.0 - time_since_last:.1f} more seconds before sending another message.")
-        return False
+        st.toast(f"Please wait {2.0 - time_since_last:.1f}s", icon="⏳")
+        return False, False
 
     st.session_state.last_message_time = current_time
-
-    # Add user message to chat
     st.session_state.messages.append({"role": "user", "content": prompt})
 
-    # Cap message history to prevent memory-based DoS (e.g., last 50 messages)
+    # History capping for performance and security
     if len(st.session_state.messages) > 50:
         st.session_state.messages = st.session_state.messages[-50:]
 
-    # Check for crisis situation
-    if detect_crisis(prompt):
+    is_crisis = detect_crisis(prompt)
+    if is_crisis:
         crisis_response = get_crisis_response()
         st.session_state.messages.append({"role": "assistant", "content": crisis_response})
 
-    return True
-        # Fixed double-yield bug to ensure clean error delivery
-        yield "I apologize, but I'm having trouble connecting right now. Please try again later. If the issue persists, please contact support."
+    return True, is_crisis
 
 def main():
     st.title("Mental Health Ease Bot")
@@ -151,117 +144,82 @@ def main():
     if "last_message_time" not in st.session_state:
         st.session_state.last_message_time = 0
 
-    # Avatar selection using pre-calculated options
+    # Avatar selection
     st.sidebar.title("Choose Your Companion")
     selected_avatar = st.sidebar.selectbox(
         "Select an avatar",
         AVATAR_OPTIONS,
-        index=AVATAR_OPTIONS.index(st.session_state.selected_avatar)
+        index=AVATAR_OPTIONS.index(st.session_state.selected_avatar),
+        format_func=lambda x: f"{AVATARS[x]['icon']} {x}"
     )
     
     if selected_avatar != st.session_state.selected_avatar:
         st.session_state.selected_avatar = selected_avatar
         st.session_state.messages = []
 
-    # Display avatar description
     st.sidebar.write(AVATARS[selected_avatar]["description"])
 
-    # Clear chat history button for privacy and security
     st.sidebar.markdown("---")
-    if st.sidebar.button("Clear Chat History", help="Delete all messages and start a new conversation"):
+    if st.sidebar.button("🗑️ Clear Chat History", help="Delete all messages and start a new conversation"):
         st.session_state.messages = []
         st.rerun()
 
-    # Display chat messages
+    # Display chat messages from history
     if not st.session_state.messages:
-        # Welcome Screen for Empty State
-        st.info(f"Welcome! I'm your **{selected_avatar}**. How can I support you today?")
-        st.write("Click on a suggestion below or type your own message to start:")
+        with st.chat_message("assistant", avatar=AVATARS[selected_avatar]["icon"]):
+            st.write(f"Welcome! I'm your **{selected_avatar}**. How can I support you today?")
+            st.write("Click on a suggestion below or type your own message to start:")
 
-        # Display suggestion buttons in columns
         suggestions = AVATARS[selected_avatar]["suggestions"]
         cols = st.columns(len(suggestions))
+        processed_suggestion = None
         for idx, suggestion in enumerate(suggestions):
             if cols[idx].button(suggestion, use_container_width=True):
-                if handle_user_input(suggestion):
-                    st.rerun()
+                processed_suggestion = suggestion
+
+        if processed_suggestion:
+            prompt = processed_suggestion
+        else:
+            prompt = None
     else:
         for message in st.session_state.messages:
-            with st.chat_message(message["role"], avatar=AVATARS[st.session_state.selected_avatar]["icon"] if message["role"] == "assistant" else None):
+            avatar = AVATARS[st.session_state.selected_avatar]["icon"] if message["role"] == "assistant" else "👤"
+            with st.chat_message(message["role"], avatar=avatar):
                 st.write(message["content"])
 
-    # Chat input with length limit for performance and security
-    if prompt := st.chat_input("How are you feeling today?", max_chars=2000):
-        if handle_user_input(prompt):
+        prompt = st.chat_input("How are you feeling today?", max_chars=2000)
+
+    # Synchronous message processing
+    if prompt:
+        success, is_crisis = handle_user_input(prompt)
+        if success:
+            # Immediate feedback: render user message
+            with st.chat_message("user", avatar="👤"):
+                st.write(prompt)
+
+            if is_crisis:
+                crisis_response = get_crisis_response()
+                with st.chat_message("assistant", avatar=AVATARS[selected_avatar]["icon"]):
+                    st.write(crisis_response)
+            else:
+                # Generate and stream bot response immediately
+                messages = [ChatMessage(role="system", content=AVATARS[selected_avatar]["system_prompt"])] + \
+                           [ChatMessage(role=msg["role"], content=msg["content"]) for msg in st.session_state.messages[-10:]]
+
+                with st.chat_message("assistant", avatar=AVATARS[selected_avatar]["icon"]):
+                    response_placeholder = st.empty()
+                    full_response = ""
+                    for response_chunk in get_bot_response(messages):
+                        full_response += response_chunk
+                        response_placeholder.markdown(full_response + "▌")
+                    response_placeholder.markdown(full_response)
+                    st.session_state.messages.append({"role": "assistant", "content": full_response})
+
+            # Since we manually rendered the new messages, we don't need to rerun immediately,
+            # but usually it's good to rerun to reset input box or suggestion buttons.
             st.rerun()
 
-    # Automatically generate bot response if the last message is from user
-    if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
-        # Prepare messages for the model, truncating history for performance
-        # Limit to the 10 most recent messages to reduce token count and improve latency
-        messages = [ChatMessage(role="system", content=AVATARS[selected_avatar]["system_prompt"])] + \
-                   [ChatMessage(role=msg["role"], content=msg["content"]) for msg in st.session_state.messages[-10:]]
-
-        # Get and display bot response with streaming
-        with st.chat_message("assistant"):
-            response_placeholder = st.empty()
-            full_response = ""
-            for response_chunk in get_bot_response(messages):
-                full_response += response_chunk
-                response_placeholder.markdown(full_response + "▌")
-            response_placeholder.markdown(full_response)
-            st.session_state.messages.append({"role": "assistant", "content": full_response})
-        # Implement a simple rate limiter to prevent DoS/API abuse
-        current_time = time.time()
-        time_since_last = current_time - st.session_state.last_message_time
-        if time_since_last < 2.0:
-            st.warning(f"Please wait {2.0 - time_since_last:.1f} more seconds before sending another message.")
-            return
-
-        st.session_state.last_message_time = current_time
-
-        # Add user message to chat
-        st.session_state.messages.append({"role": "user", "content": prompt})
-
-        # Implement history capping to prevent memory-based DoS and keep UI performance consistent
-        # Maintaining only the 50 most recent messages ensures bounded memory and rendering time.
-        if len(st.session_state.messages) > 50:
-            st.session_state.messages = st.session_state.messages[-50:]
-
-        with st.chat_message("user"):
-            st.write(prompt)
-
-        # Check for crisis situation
-        if detect_crisis(prompt):
-            crisis_response = get_crisis_response()
-            st.session_state.messages.append({"role": "assistant", "content": crisis_response})
-            with st.chat_message("assistant", avatar=AVATARS[selected_avatar]["icon"]):
-                st.write(crisis_response)
-        else:
-            # Prepare messages for the model, truncating history for performance
-            # Limit to the 10 most recent messages to reduce token count and improve latency
-            # Expected impact: Reduces token usage by up to 80% for long conversations
-            # and improves API response time by ~200-500ms.
-            # Using list comprehension for slightly better performance than repeated .append()
-            messages = [ChatMessage(role="system", content=AVATARS[selected_avatar]["system_prompt"])] + \
-                       [ChatMessage(role=msg["role"], content=msg["content"]) for msg in st.session_state.messages[-10:]]
-
-            # Get and display bot response with streaming
-            with st.chat_message("assistant", avatar=AVATARS[selected_avatar]["icon"]):
-                response_placeholder = st.empty()
-                full_response = ""
-                # Use a counter for token buffering to reduce UI update frequency
-                # Updating every 5 tokens significantly reduces websocket traffic and rerender overhead.
-                chunk_count = 0
-                for response_chunk in get_bot_response(messages):
-                    full_response += response_chunk
-                    chunk_count += 1
-                    if chunk_count % 5 == 0:
-                        response_placeholder.markdown(full_response + "▌")
-                response_placeholder.markdown(full_response)
-                st.session_state.messages.append({"role": "assistant", "content": full_response})
-
-    # Display emergency resources
+    # Sidebar resources
     st.sidebar.markdown("---")
     st.sidebar.error("""
         🚨 **Emergency Resources**
