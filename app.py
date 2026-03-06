@@ -11,16 +11,25 @@ from mistralai.models.chat_completion import ChatMessage
 # Load environment variables
 load_dotenv()
 
-# Configure logging once at the application level
-logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-
 def sanitize_error(message):
     """Redact sensitive information like API keys from error messages."""
     if not isinstance(message, str):
         message = str(message)
     # Mask Mistral API keys: sk-[a-zA-Z0-9]+
     return re.sub(r'sk-[a-zA-Z0-9]+', '[REDACTED_API_KEY]', message)
+
+class SanitizedFormatter(logging.Formatter):
+    """Custom formatter to redact sensitive information from all log output, including tracebacks."""
+    def format(self, record):
+        return sanitize_error(super().format(record))
+
+# Configure logging once at the application level
+logging.basicConfig(level=logging.ERROR)
+logger = logging.getLogger(__name__)
+
+# Apply custom sanitized formatter to all root handlers to ensure defense-in-depth
+for handler in logging.root.handlers:
+    handler.setFormatter(SanitizedFormatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
 
 # Cache the Mistral client to prevent re-initialization on every rerun
 @st.cache_resource
@@ -105,7 +114,7 @@ def get_bot_response(messages):
     try:
         client = get_mistral_client()
         if not client._api_key:
-            logger.error(sanitize_error("Mistral API key is missing."))
+            logger.error("Mistral API key is missing.")
             yield "I'm sorry, but there's a configuration issue. Please contact support."
             return
 
@@ -124,7 +133,7 @@ def get_bot_response(messages):
                 yield content
     except Exception as e:
         # Log the full error server-side for debugging
-        logger.error(sanitize_error(f"Error in get_bot_response: {str(e)}"), exc_info=True)
+        logger.error(f"Error in get_bot_response: {str(e)}", exc_info=True)
         # Return a generic error message to the user to prevent information leakage
         yield "I apologize, but I'm having trouble connecting right now. Please try again later."
 
