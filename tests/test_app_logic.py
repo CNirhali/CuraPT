@@ -78,9 +78,11 @@ def test_handle_user_input_stores_chatmessage_objects(mocker):
     mocker.patch.object(st, "session_state", mock_state)
 
     prompt = "Hello"
-    result = handle_user_input(prompt)
+    success, is_crisis, crisis_text = handle_user_input(prompt)
 
-    assert result == True
+    assert success == True
+    assert is_crisis == False
+    assert crisis_text is None
     assert len(st.session_state["messages"]) == 1
     msg = st.session_state["messages"][0]
     assert isinstance(msg, ChatMessage)
@@ -102,9 +104,11 @@ def test_handle_user_input_crisis_stores_chatmessage_objects(mocker):
     mocker.patch.object(st, "session_state", mock_state)
 
     prompt = "I want to kill myself"
-    result = handle_user_input(prompt)
+    success, is_crisis, crisis_text = handle_user_input(prompt)
 
-    assert result == True
+    assert success == True
+    assert is_crisis == True
+    assert "988" in crisis_text
     assert len(st.session_state["messages"]) == 2
     user_msg = st.session_state["messages"][0]
     assistant_msg = st.session_state["messages"][1]

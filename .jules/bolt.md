@@ -17,3 +17,7 @@
 ## 2026-03-04 - [Token Buffering and History Capping]
 **Learning:** Updating the Streamlit UI (via `st.markdown`) for every token in a stream causes significant websocket overhead and browser rerender lag. Buffering tokens and updating the UI every 5-10 chunks provides a much smoother experience. Additionally, capping `st.session_state.messages` to a fixed size (e.g., 50) is essential to prevent linear performance degradation in Streamlit's "render everything" model.
 **Action:** Always implement token buffering in streaming loops and maintain a bounded session state for long-running chat applications.
+
+## 2026-03-05 - [Fallback Logic for Non-Text Chat Inputs]
+**Learning:** In Streamlit, logic placed inside an `if prompt := st.chat_input():` block is only executed when direct text input occurs. If the chat state is modified by other interactions (e.g., suggestion buttons) that trigger a rerun, the bot response logic must be accessible via a fallback check (e.g., `if messages[-1].role == "user":`) to ensure the assistant always responds.
+**Action:** Always provide a fallback response mechanism for chat applications that support multiple input methods beyond the standard chat input widget.
