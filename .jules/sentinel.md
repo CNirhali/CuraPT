@@ -21,5 +21,5 @@
 
 ## 2026-03-01 - [Sensitive Data Leakage in Server Logs]
 **Vulnerability:** Potential leakage of API keys and other sensitive credentials into server-side logs during error handling.
-**Learning:** Even when errors are masked from the frontend, logging the raw exception message can inadvertently store secrets in persistent log files, which may be accessible to unauthorized personnel or systems.
-**Prevention:** Implement a `sanitize_error` utility to redact sensitive patterns (like API keys) from error messages before they are passed to the logger.
+**Learning:** Even when errors are masked from the frontend, logging the raw exception message can inadvertently store secrets in persistent log files. Furthermore, Python's `exc_info=True` appends tracebacks which bypass manual sanitization of the error message string.
+**Prevention:** Implement a custom `logging.Formatter` (e.g., `SanitizedFormatter`) that redacts sensitive patterns from the *entire* formatted log record, including tracebacks. Apply this formatter to all root handlers for defense-in-depth.
