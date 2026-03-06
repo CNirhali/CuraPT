@@ -20,10 +20,11 @@ def test_detect_crisis():
     assert detect_crisis("I'm happy with my progress") == False
 
 def test_get_crisis_response():
+    # Verify the presence of actionable links
     response = get_crisis_response()
-    assert "988" in response
-    assert "741741" in response
-    assert "911" in response
+    assert "[988](tel:988)" in response
+    assert "[Text HOME to 741741](sms:741741)" in response
+    assert "[911](tel:911)" in response
 
 def test_get_bot_response_success(mocker):
     # Mock MistralClient
@@ -36,6 +37,7 @@ def test_get_bot_response_success(mocker):
     mock_chunk2.choices = [mocker.Mock(delta=mocker.Mock(content="How can I help you?"))]
 
     mock_client.chat_stream.return_value = [mock_chunk1, mock_chunk2]
+    mock_client._api_key = "some-key"
 
     mocker.patch("app.get_mistral_client", return_value=mock_client)
 
@@ -50,6 +52,7 @@ def test_get_bot_response_error_masking(mocker):
     # Mock MistralClient to raise an exception
     mock_client = mocker.Mock()
     mock_client.chat_stream.side_effect = Exception("Sensitive API Error: sk-123456789")
+    mock_client._api_key = "some-key"
 
     mocker.patch("app.get_mistral_client", return_value=mock_client)
 
@@ -83,6 +86,10 @@ def test_handle_user_input_stores_chatmessage_objects(mocker):
     assert success == True
     assert is_crisis == False
     assert crisis_text is None
+    success, is_crisis = handle_user_input(prompt)
+
+    assert success == True
+    assert is_crisis == False
     assert len(st.session_state["messages"]) == 1
     msg = st.session_state["messages"][0]
     assert isinstance(msg, ChatMessage)
@@ -109,6 +116,10 @@ def test_handle_user_input_crisis_stores_chatmessage_objects(mocker):
     assert success == True
     assert is_crisis == True
     assert "988" in crisis_text
+    success, is_crisis = handle_user_input(prompt)
+
+    assert success == True
+    assert is_crisis == True
     assert len(st.session_state["messages"]) == 2
     user_msg = st.session_state["messages"][0]
     assistant_msg = st.session_state["messages"][1]

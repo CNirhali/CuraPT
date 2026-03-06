@@ -3,6 +3,7 @@ import os
 import re
 import logging
 import time
+from datetime import datetime
 from dotenv import load_dotenv
 from mistralai.client import MistralClient
 from mistralai.models.chat_completion import ChatMessage
@@ -10,16 +11,25 @@ from mistralai.models.chat_completion import ChatMessage
 # Load environment variables
 load_dotenv()
 
-# Configure logging once at the application level
-logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-
 def sanitize_error(message):
     """Redact sensitive information like API keys from error messages."""
     if not isinstance(message, str):
         message = str(message)
     # Mask Mistral API keys: sk-[a-zA-Z0-9]+
     return re.sub(r'sk-[a-zA-Z0-9]+', '[REDACTED_API_KEY]', message)
+
+class SanitizedFormatter(logging.Formatter):
+    """Custom formatter to redact sensitive information from all log output, including tracebacks."""
+    def format(self, record):
+        return sanitize_error(super().format(record))
+
+# Configure logging once at the application level
+logging.basicConfig(level=logging.ERROR)
+logger = logging.getLogger(__name__)
+
+# Apply custom sanitized formatter to all root handlers to ensure defense-in-depth
+for handler in logging.root.handlers:
+    handler.setFormatter(SanitizedFormatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
 
 # Cache the Mistral client to prevent re-initialization on every rerun
 @st.cache_resource
@@ -104,7 +114,7 @@ def get_bot_response(messages):
     try:
         client = get_mistral_client()
         if not client._api_key:
-            logger.error(sanitize_error("Mistral API key is missing."))
+            logger.error("Mistral API key is missing.")
             yield "I'm sorry, but there's a configuration issue. Please contact support."
             return
 
@@ -122,9 +132,8 @@ def get_bot_response(messages):
                     break
                 yield content
     except Exception as e:
-        logger.error(f"Error in get_bot_response: {str(e)}", exc_info=True)
         # Log the full error server-side for debugging
-        logger.error(sanitize_error(f"Error in get_bot_response: {str(e)}"), exc_info=True)
+        logger.error(f"Error in get_bot_response: {str(e)}", exc_info=True)
         # Return a generic error message to the user to prevent information leakage
         yield "I apologize, but I'm having trouble connecting right now. Please try again later."
 
@@ -137,6 +146,7 @@ def handle_user_input(prompt):
         return False, False, None
 
     st.session_state.last_message_time = current_time
+
     # Add user message to chat as ChatMessage object for performance
     st.session_state.messages.append(ChatMessage(role="user", content=prompt))
 
@@ -151,6 +161,17 @@ def handle_user_input(prompt):
         st.session_state.messages.append(ChatMessage(role="assistant", content=crisis_text))
 
     return True, is_crisis, crisis_text
+    return True, is_crisis
+
+def get_time_based_greeting():
+    """Return a time-appropriate greeting for the welcome message."""
+    hour = datetime.now().hour
+    if hour < 12:
+        return "Good morning"
+    elif 12 <= hour < 18:
+        return "Good afternoon"
+    else:
+        return "Good evening"
 
 def main():
     st.title("Mental Health Ease Bot")
@@ -184,10 +205,18 @@ def main():
         st.session_state.messages = []
         st.rerun()
 
+    with st.sidebar.expander("🛡️ Privacy & Safety"):
+        st.write("""
+            - Conversations are confidential and not stored on our servers permanently.
+            - Your Mistral API key is used only for processing this session.
+            - This bot is not a replacement for professional care.
+        """)
+
     # Display chat messages from history
     if not st.session_state.messages:
         with st.chat_message("assistant", avatar=AVATARS[selected_avatar]["icon"]):
-            st.write(f"Welcome! I'm your **{selected_avatar}**. How can I support you today?")
+            greeting = get_time_based_greeting()
+            st.write(f"{greeting}! I'm your **{selected_avatar}**. How can I support you today?")
             st.write("Click on a suggestion below or type your own message to start:")
 
         suggestions = AVATARS[selected_avatar]["suggestions"]
@@ -206,10 +235,13 @@ def main():
             avatar = AVATAR_ICONS[st.session_state.selected_avatar] if message.role == "assistant" else "👤"
             with st.chat_message(message.role, avatar=avatar):
                 st.write(message.content)
+        prompt = None
 
+    # Chat input is always visible unless a suggestion was just clicked
+    if not prompt:
         prompt = st.chat_input("How are you feeling today?", max_chars=2000)
 
-    # Synchronous message processing
+    # Message processing
     if prompt:
         success, is_crisis, crisis_text = handle_user_input(prompt)
         if success:
@@ -223,6 +255,11 @@ def main():
             else:
                 # Generate and stream bot response immediately
                 # Use pre-calculated SYSTEM_MESSAGES and slice history directly (already stored as ChatMessage objects)
+                crisis_response = get_crisis_response()
+                with st.chat_message("assistant", avatar=AVATAR_ICONS[selected_avatar]):
+                    st.write(crisis_response)
+            else:
+                # Generate and stream bot response immediately
                 messages = [SYSTEM_MESSAGES[selected_avatar]] + st.session_state.messages[-10:]
 
                 with st.chat_message("assistant", avatar=AVATAR_ICONS[selected_avatar]):
@@ -259,6 +296,8 @@ def main():
             response_placeholder.markdown(full_response)
             st.session_state.messages.append(ChatMessage(role="assistant", content=full_response))
         st.rerun()
+
+            st.rerun()
 
     # Sidebar resources
     st.sidebar.markdown("---")
