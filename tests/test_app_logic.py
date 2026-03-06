@@ -81,6 +81,11 @@ def test_handle_user_input_stores_chatmessage_objects(mocker):
     mocker.patch.object(st, "session_state", mock_state)
 
     prompt = "Hello"
+    success, is_crisis, crisis_text = handle_user_input(prompt)
+
+    assert success == True
+    assert is_crisis == False
+    assert crisis_text is None
     success, is_crisis = handle_user_input(prompt)
 
     assert success == True
@@ -106,6 +111,11 @@ def test_handle_user_input_crisis_stores_chatmessage_objects(mocker):
     mocker.patch.object(st, "session_state", mock_state)
 
     prompt = "I want to kill myself"
+    success, is_crisis, crisis_text = handle_user_input(prompt)
+
+    assert success == True
+    assert is_crisis == True
+    assert "988" in crisis_text
     success, is_crisis = handle_user_input(prompt)
 
     assert success == True
