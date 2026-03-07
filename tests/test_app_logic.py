@@ -81,17 +81,43 @@ def test_handle_user_input_stores_chatmessage_objects(mocker):
     mocker.patch.object(st, "session_state", mock_state)
 
     prompt = "Hello"
-    success, is_crisis, crisis_text = handle_user_input(prompt)
+    success, is_crisis, crisis_text, sanitized_prompt = handle_user_input(prompt)
 
     assert success == True
     assert is_crisis == False
     assert crisis_text is None
+    assert sanitized_prompt == prompt
 
     assert len(st.session_state["messages"]) == 1
     msg = st.session_state["messages"][0]
     assert isinstance(msg, ChatMessage)
     assert msg.role == "user"
     assert msg.content == prompt
+
+def test_handle_user_input_sanitization(mocker):
+    # Mock streamlit session state
+    class MockState:
+        def __init__(self):
+            self.messages = []
+            self.last_message_time = 0
+        def get(self, k, d):
+            return getattr(self, k, d)
+        def __getitem__(self, k):
+            return getattr(self, k)
+
+    mock_state = MockState()
+    mocker.patch.object(st, "session_state", mock_state)
+
+    prompt = "My secret key is sk-1234567890abcdef1234567890abcdef"
+    success, is_crisis, crisis_text, sanitized_prompt = handle_user_input(prompt)
+
+    assert success == True
+    assert "[REDACTED_API_KEY]" in sanitized_prompt
+    assert "sk-1234567890abcdef1234567890abcdef" not in sanitized_prompt
+
+    assert len(st.session_state["messages"]) == 1
+    msg = st.session_state["messages"][0]
+    assert msg.content == sanitized_prompt
 
 def test_handle_user_input_crisis_stores_chatmessage_objects(mocker):
     # Mock streamlit session state with an object that supports both dict and attribute access
@@ -108,7 +134,7 @@ def test_handle_user_input_crisis_stores_chatmessage_objects(mocker):
     mocker.patch.object(st, "session_state", mock_state)
 
     prompt = "I want to kill myself"
-    success, is_crisis, crisis_text = handle_user_input(prompt)
+    success, is_crisis, crisis_text, sanitized_prompt = handle_user_input(prompt)
 
     assert success == True
     assert is_crisis == True

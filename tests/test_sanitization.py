@@ -15,5 +15,9 @@ class TestSanitizeError(unittest.TestCase):
         msg = "Generic connection error"
         self.assertEqual(sanitize_error(msg), msg)
 
+    def test_sanitize_error_word_boundary(self):
+        msg = "The risk-based assessment was completed."
+        self.assertEqual(sanitize_error(msg), msg)
+
 if __name__ == '__main__':
     unittest.main()

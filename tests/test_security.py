@@ -24,5 +24,37 @@ class TestSecurity(unittest.TestCase):
         self.assertNotIn("password=123", response)
         self.assertNotIn("Exception", response)
 
+    def test_user_input_sanitization_before_provider(self):
+        # This test ensures that handle_user_input redacts secrets before they reach the rest of the system
+        import streamlit as st
+        from app import handle_user_input
+        from mistralai.models.chat_completion import ChatMessage
+
+        # Mock streamlit session state
+        class MockState:
+            def __init__(self):
+                self.messages = []
+                self.last_message_time = 0
+            def get(self, k, d):
+                return getattr(self, k, d)
+            def __getitem__(self, k):
+                return getattr(self, k)
+
+        mock_state = MockState()
+        with patch.object(st, 'session_state', mock_state):
+            secret_key = "sk-abcdef1234567890abcdef1234567890"
+            prompt = f"Please use this key: {secret_key}"
+
+            success, is_crisis, crisis_text, sanitized_prompt = handle_user_input(prompt)
+
+            self.assertTrue(success)
+            self.assertIn("[REDACTED_API_KEY]", sanitized_prompt)
+            self.assertNotIn(secret_key, sanitized_prompt)
+
+            # Check that the sanitized version is what's stored in history
+            self.assertEqual(len(mock_state.messages), 1)
+            self.assertIn("[REDACTED_API_KEY]", mock_state.messages[0].content)
+            self.assertNotIn(secret_key, mock_state.messages[0].content)
+
 if __name__ == '__main__':
     unittest.main()

@@ -15,8 +15,8 @@ def sanitize_error(message):
     """Redact sensitive information like API keys from error messages."""
     if not isinstance(message, str):
         message = str(message)
-    # Mask Mistral API keys: sk-[a-zA-Z0-9]+
-    return re.sub(r'sk-[a-zA-Z0-9]+', '[REDACTED_API_KEY]', message)
+    # Mask Mistral API keys with word boundaries to avoid false positives: \bsk-[a-zA-Z0-9]+\b
+    return re.sub(r'\bsk-[a-zA-Z0-9]+\b', '[REDACTED_API_KEY]', message)
 
 class SanitizedFormatter(logging.Formatter):
     """Custom formatter to redact sensitive information from all log output, including tracebacks."""
@@ -138,29 +138,32 @@ def get_bot_response(messages):
         yield "I apologize, but I'm having trouble connecting right now. Please try again later."
 
 def handle_user_input(prompt):
-    """Update state with user input and check for crisis. Returns (success, is_crisis, crisis_text)."""
+    """Update state with user input and check for crisis. Returns (success, is_crisis, crisis_text, sanitized_prompt)."""
     current_time = time.time()
     time_since_last = current_time - st.session_state.get("last_message_time", 0)
     if time_since_last < 2.0:
         st.toast(f"Please wait {2.0 - time_since_last:.1f}s", icon="⏳")
-        return False, False, None
+        return False, False, None, prompt
 
     st.session_state.last_message_time = current_time
 
+    # Sanitize user input to prevent accidental leakage of sensitive info (like API keys) to the provider
+    sanitized_prompt = sanitize_error(prompt)
+
     # Add user message to chat as ChatMessage object for performance
-    st.session_state.messages.append(ChatMessage(role="user", content=prompt))
+    st.session_state.messages.append(ChatMessage(role="user", content=sanitized_prompt))
 
     # History capping for performance and security
     if len(st.session_state.messages) > 50:
         st.session_state.messages = st.session_state.messages[-50:]
 
-    is_crisis = detect_crisis(prompt)
+    is_crisis = detect_crisis(sanitized_prompt)
     crisis_text = None
     if is_crisis:
         crisis_text = get_crisis_response()
         st.session_state.messages.append(ChatMessage(role="assistant", content=crisis_text))
 
-    return True, is_crisis, crisis_text
+    return True, is_crisis, crisis_text, sanitized_prompt
 
 def get_time_based_greeting():
     """Return a time-appropriate greeting for the welcome message."""
@@ -257,11 +260,11 @@ def main():
 
     # Message processing
     if prompt:
-        success, is_crisis, crisis_text = handle_user_input(prompt)
+        success, is_crisis, crisis_text, sanitized_prompt = handle_user_input(prompt)
         if success:
-            # Immediate feedback: render user message
+            # Immediate feedback: render sanitized user message
             with st.chat_message("user", avatar="👤"):
-                st.write(prompt)
+                st.write(sanitized_prompt)
 
             if is_crisis:
                 with st.chat_message("assistant", avatar=AVATAR_ICONS[selected_avatar]):
