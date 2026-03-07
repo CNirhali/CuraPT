@@ -86,10 +86,7 @@ def test_handle_user_input_stores_chatmessage_objects(mocker):
     assert success == True
     assert is_crisis == False
     assert crisis_text is None
-    success, is_crisis = handle_user_input(prompt)
 
-    assert success == True
-    assert is_crisis == False
     assert len(st.session_state["messages"]) == 1
     msg = st.session_state["messages"][0]
     assert isinstance(msg, ChatMessage)
@@ -116,10 +113,7 @@ def test_handle_user_input_crisis_stores_chatmessage_objects(mocker):
     assert success == True
     assert is_crisis == True
     assert "988" in crisis_text
-    success, is_crisis = handle_user_input(prompt)
 
-    assert success == True
-    assert is_crisis == True
     assert len(st.session_state["messages"]) == 2
     user_msg = st.session_state["messages"][0]
     assistant_msg = st.session_state["messages"][1]

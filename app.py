@@ -161,7 +161,6 @@ def handle_user_input(prompt):
         st.session_state.messages.append(ChatMessage(role="assistant", content=crisis_text))
 
     return True, is_crisis, crisis_text
-    return True, is_crisis
 
 def get_time_based_greeting():
     """Return a time-appropriate greeting for the welcome message."""
@@ -197,13 +196,28 @@ def main():
     if selected_avatar != st.session_state.selected_avatar:
         st.session_state.selected_avatar = selected_avatar
         st.session_state.messages = []
+        st.session_state.confirm_delete = False
 
     st.sidebar.write(AVATARS[selected_avatar]["description"])
 
     st.sidebar.markdown("---")
-    if st.sidebar.button("🗑️ Clear Chat History", help="Delete all messages and start a new conversation"):
-        st.session_state.messages = []
-        st.rerun()
+    if "confirm_delete" not in st.session_state:
+        st.session_state.confirm_delete = False
+
+    if not st.session_state.confirm_delete:
+        if st.sidebar.button("🗑️ Clear Chat History", help="Delete all messages and start a new conversation"):
+            st.session_state.confirm_delete = True
+            st.rerun()
+    else:
+        st.sidebar.warning("Are you sure you want to clear the chat?")
+        col1, col2 = st.sidebar.columns(2)
+        if col1.button("✅ Yes", use_container_width=True, help="Confirm and delete all messages"):
+            st.session_state.messages = []
+            st.session_state.confirm_delete = False
+            st.rerun()
+        if col2.button("❌ No", use_container_width=True, help="Cancel and keep conversation"):
+            st.session_state.confirm_delete = False
+            st.rerun()
 
     with st.sidebar.expander("🛡️ Privacy & Safety"):
         st.write("""
@@ -254,16 +268,11 @@ def main():
                     st.write(crisis_text)
             else:
                 # Generate and stream bot response immediately
-                # Use pre-calculated SYSTEM_MESSAGES and slice history directly (already stored as ChatMessage objects)
-                crisis_response = get_crisis_response()
-                with st.chat_message("assistant", avatar=AVATAR_ICONS[selected_avatar]):
-                    st.write(crisis_response)
-            else:
-                # Generate and stream bot response immediately
                 messages = [SYSTEM_MESSAGES[selected_avatar]] + st.session_state.messages[-10:]
 
                 with st.chat_message("assistant", avatar=AVATAR_ICONS[selected_avatar]):
                     response_placeholder = st.empty()
+                    response_placeholder.markdown("*(thinking...)*")
                     full_response = ""
                     # Use token buffering to reduce UI update frequency and websocket traffic
                     chunk_count = 0
@@ -276,27 +285,6 @@ def main():
                     st.session_state.messages.append(ChatMessage(role="assistant", content=full_response))
 
             # Rerun to clear input and refresh UI state
-            st.rerun()
-
-    # Fallback: Generate bot response if last message is from user but no response exists
-    # This handles edge cases like suggestion buttons that might trigger reruns before response generation
-    if st.session_state.messages and st.session_state.messages[-1].role == "user":
-        # Check if we are already in a responding state (prevent recursion if bot_response appends and reruns)
-        # In this simple app, we can just check if we have messages and trigger the same logic
-        messages = [SYSTEM_MESSAGES[selected_avatar]] + st.session_state.messages[-10:]
-        with st.chat_message("assistant", avatar=AVATAR_ICONS[selected_avatar]):
-            response_placeholder = st.empty()
-            full_response = ""
-            chunk_count = 0
-            for response_chunk in get_bot_response(messages):
-                full_response += response_chunk
-                chunk_count += 1
-                if chunk_count % 5 == 0:
-                    response_placeholder.markdown(full_response + "▌")
-            response_placeholder.markdown(full_response)
-            st.session_state.messages.append(ChatMessage(role="assistant", content=full_response))
-        st.rerun()
-
             st.rerun()
 
     # Sidebar resources
