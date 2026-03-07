@@ -21,3 +21,7 @@
 ## 2026-03-05 - [Fallback Logic for Non-Text Chat Inputs]
 **Learning:** In Streamlit, logic placed inside an `if prompt := st.chat_input():` block is only executed when direct text input occurs. If the chat state is modified by other interactions (e.g., suggestion buttons) that trigger a rerun, the bot response logic must be accessible via a fallback check (e.g., `if messages[-1].role == "user":`) to ensure the assistant always responds.
 **Action:** Always provide a fallback response mechanism for chat applications that support multiple input methods beyond the standard chat input widget.
+
+## 2026-03-06 - [Loop Invariant Removal and Static UI Mapping]
+**Learning:** In Streamlit's execution model, every interaction triggers a full script rerun. Moving invariant lookups (e.g., fetching a constant avatar icon) outside of large loops (like the chat history renderer) and pre-calculating UI-specific strings (like selectbox labels) at the module level significantly reduces per-rerun CPU overhead.
+**Action:** Always identify and extract loop-invariant operations and pre-calculate stable UI mappings to minimize redundant processing during reruns.
