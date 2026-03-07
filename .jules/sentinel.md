@@ -23,3 +23,8 @@
 **Vulnerability:** Potential leakage of API keys and other sensitive credentials into server-side logs during error handling.
 **Learning:** Even when errors are masked from the frontend, logging the raw exception message can inadvertently store secrets in persistent log files. Furthermore, Python's `exc_info=True` appends tracebacks which bypass manual sanitization of the error message string.
 **Prevention:** Implement a custom `logging.Formatter` (e.g., `SanitizedFormatter`) that redacts sensitive patterns from the *entire* formatted log record, including tracebacks. Apply this formatter to all root handlers for defense-in-depth.
+
+## 2026-03-02 - [User-Side Secret Redaction and Regex Precision]
+**Vulnerability:** Accidental leakage of secrets (API keys) by the user into chat history, provider requests, and logs.
+**Learning:** Redacting secrets only on the server-side output is insufficient; user input must be sanitized at the ingestion point to prevent secrets from ever reaching the LLM provider or being stored in session state. Additionally, simple regex patterns for keys (like `sk-[a-zA-Z0-9]+`) can cause false positives in normal text (e.g., "risk-based").
+**Prevention:** Sanitize user input immediately in the processing pipeline (e.g., `handle_user_input`) and use word boundaries (`\b`) in redaction regexes to ensure only full tokens matching the secret pattern are masked.
