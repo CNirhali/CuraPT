@@ -11,12 +11,15 @@ from mistralai.models.chat_completion import ChatMessage
 # Load environment variables
 load_dotenv()
 
+# Pre-compiled regex for API key sanitization
+SANITIZATION_PATTERN = re.compile(r'\bsk-[a-zA-Z0-9]+\b')
+
 def sanitize_error(message):
     """Redact sensitive information like API keys from error messages."""
     if not isinstance(message, str):
         message = str(message)
     # Mask Mistral API keys with word boundaries to avoid false positives: \bsk-[a-zA-Z0-9]+\b
-    return re.sub(r'\bsk-[a-zA-Z0-9]+\b', '[REDACTED_API_KEY]', message)
+    return SANITIZATION_PATTERN.sub('[REDACTED_API_KEY]', message)
 
 class SanitizedFormatter(logging.Formatter):
     """Custom formatter to redact sensitive information from all log output, including tracebacks."""
@@ -79,6 +82,10 @@ SYSTEM_MESSAGES = {
 }
 AVATAR_ICONS = {
     name: data["icon"]
+    for name, data in AVATARS.items()
+}
+AVATAR_DISPLAY_NAMES = {
+    name: f"{data['icon']} {name}"
     for name, data in AVATARS.items()
 }
 
@@ -193,7 +200,7 @@ def main():
         "Select an avatar",
         AVATAR_OPTIONS,
         index=AVATAR_OPTIONS.index(st.session_state.selected_avatar),
-        format_func=lambda x: f"{AVATARS[x]['icon']} {x}"
+        format_func=AVATAR_DISPLAY_NAMES.get
     )
     
     if selected_avatar != st.session_state.selected_avatar:
@@ -248,8 +255,10 @@ def main():
         else:
             prompt = None
     else:
+        # Pre-calculate assistant icon once per rerun to avoid redundant lookups in the loop
+        assistant_icon = AVATAR_ICONS[st.session_state.selected_avatar]
         for message in st.session_state.messages:
-            avatar = AVATAR_ICONS[st.session_state.selected_avatar] if message.role == "assistant" else "👤"
+            avatar = assistant_icon if message.role == "assistant" else "👤"
             with st.chat_message(message.role, avatar=avatar):
                 st.write(message.content)
         prompt = None
