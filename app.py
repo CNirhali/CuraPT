@@ -18,6 +18,9 @@ def sanitize_error(message):
     """Redact sensitive information like API keys from error messages."""
     if not isinstance(message, str):
         message = str(message)
+    # Optimization: fast-path check to avoid regex if no potential key is present
+    if "sk-" not in message:
+        return message
     # Mask Mistral API keys with word boundaries to avoid false positives: \bsk-[a-zA-Z0-9]+\b
     return SANITIZATION_PATTERN.sub('[REDACTED_API_KEY]', message)
 
