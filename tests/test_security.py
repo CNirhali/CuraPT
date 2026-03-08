@@ -18,7 +18,7 @@ class TestSecurity(unittest.TestCase):
         response = "".join(list(response_gen))
 
         # Assert that the response is a generic error message
-        self.assertIn("I apologize", response)
+        self.assertIn("I'm here for you", response)
 
         # Assert that the detailed error is NOT in the response
         self.assertNotIn("password=123", response)
