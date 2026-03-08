@@ -27,7 +27,7 @@ class SanitizedFormatter(logging.Formatter):
         return sanitize_error(super().format(record))
 
 # Configure logging once at the application level
-logging.basicConfig(level=logging.ERROR)
+logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
 # Apply custom sanitized formatter to all root handlers to ensure defense-in-depth
@@ -94,7 +94,9 @@ CRISIS_KEYWORDS = [
     "suicide", "kill myself", "end it all", "ending it all", "no reason to live",
     "want to die", "better off dead", "hurt myself", "take my life", "self-harm",
     "don't want to be here anymore", "slit my wrists", "overdose",
-    "hopeless", "can't go on", "end my life"
+    "hopeless", "can't go on", "end my life", "suicidal", "kill me",
+    "jumping off", "jump off", "cut myself", "hang myself", "poison myself",
+    "kill yourself", "ending your life", "hurt yourself"
 ]
 # Pre-compiled regex for faster crisis detection
 CRISIS_PATTERN = re.compile(r'|'.join(map(re.escape, CRISIS_KEYWORDS)), re.IGNORECASE)
@@ -167,6 +169,7 @@ def handle_user_input(prompt):
     is_crisis = detect_crisis(sanitized_prompt)
     crisis_text = None
     if is_crisis:
+        logger.warning(f"Safety: Crisis detected in user input.")
         crisis_text = get_crisis_response()
         st.session_state.messages.append(ChatMessage(role="assistant", content=crisis_text))
 
@@ -292,9 +295,17 @@ def main():
                         full_response += response_chunk
                         chunk_count += 1
                         if chunk_count % 5 == 0:
-                            response_placeholder.markdown(full_response + "▌")
-                    response_placeholder.markdown(full_response)
-                    st.session_state.messages.append(ChatMessage(role="assistant", content=full_response))
+                            # Sanitize incremental response for safety
+                            response_placeholder.markdown(sanitize_error(full_response) + "▌")
+
+                    # Final safety and sanitization check
+                    final_response = sanitize_error(full_response)
+                    if detect_crisis(final_response):
+                        logger.warning("Safety: Crisis detected in AI response. Redacting.")
+                        final_response = "I'm sorry, I cannot fulfill this request as it may contain unsafe content. If you're in distress, please use the emergency resources in the sidebar."
+
+                    response_placeholder.markdown(final_response)
+                    st.session_state.messages.append(ChatMessage(role="assistant", content=final_response))
 
             # Rerun to clear input and refresh UI state
             st.rerun()
