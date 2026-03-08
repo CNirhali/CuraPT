@@ -25,3 +25,7 @@
 ## 2026-03-06 - [Loop Invariant Removal and Static UI Mapping]
 **Learning:** In Streamlit's execution model, every interaction triggers a full script rerun. Moving invariant lookups (e.g., fetching a constant avatar icon) outside of large loops (like the chat history renderer) and pre-calculating UI-specific strings (like selectbox labels) at the module level significantly reduces per-rerun CPU overhead.
 **Action:** Always identify and extract loop-invariant operations and pre-calculate stable UI mappings to minimize redundant processing during reruns.
+
+## 2026-03-08 - [Fast-path String Checks for Regex Performance]
+**Learning:** In hot paths where regular expressions are used for sanitization or keyword detection, adding a simple string-based "fast-path" check (e.g., `if "sk-" not in message: return message`) can provide a massive performance boost (up to 20x) for the common case by avoiding the overhead of the regex engine entirely when no match is possible.
+**Action:** Always consider adding simple substring checks before executing complex regular expressions, especially when the target pattern has a unique, constant prefix or identifiable substring.
