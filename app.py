@@ -113,9 +113,9 @@ def get_crisis_response():
     return """
     I'm concerned about your safety. Please know that you're not alone, and help is available:
     
-    - 📞 **National Suicide Prevention Lifeline**: [988](tel:988)
+    - 📞 **National Suicide Prevention Lifeline**: [Call or Text 988](tel:988)
     - 💬 **Crisis Text Line**: [Text HOME to 741741](sms:741741)
-    - 🚑 **Emergency Services**: [911](tel:911)
+    - 🚑 **Emergency Services**: [Call 911](tel:911)
     
     These services are available 24/7 and are free and confidential.
     Would you like me to help you connect with any of these resources?
@@ -321,9 +321,9 @@ def main():
         🚨 **Emergency Resources**
 
         If you're in crisis, please contact:
-        - 📞 **National Suicide Prevention Lifeline**: [988](tel:988)
+        - 📞 **National Suicide Prevention Lifeline**: [Call or Text 988](tel:988)
         - 💬 **Crisis Text Line**: [Text HOME to 741741](sms:741741)
-        - 🚑 **Emergency Services**: [911](tel:911)
+        - 🚑 **Emergency Services**: [Call 911](tel:911)
     """)
 
 if __name__ == "__main__":

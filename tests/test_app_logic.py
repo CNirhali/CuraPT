@@ -26,11 +26,11 @@ def test_detect_crisis():
     assert detect_crisis("I'm happy with my progress") == False
 
 def test_get_crisis_response():
-    # Verify the presence of actionable links
+    # Verify the presence of actionable links with descriptive text
     response = get_crisis_response()
-    assert "[988](tel:988)" in response
+    assert "[Call or Text 988](tel:988)" in response
     assert "[Text HOME to 741741](sms:741741)" in response
-    assert "[911](tel:911)" in response
+    assert "[Call 911](tel:911)" in response
 
 def test_get_bot_response_success(mocker):
     # Mock MistralClient
