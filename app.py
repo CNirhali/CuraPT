@@ -101,12 +101,13 @@ CRISIS_KEYWORDS = [
     "jumping off", "jump off", "cut myself", "hang myself", "poison myself",
     "kill yourself", "ending your life", "hurt yourself"
 ]
-# Pre-compiled regex for faster crisis detection
-CRISIS_PATTERN = re.compile(r'|'.join(map(re.escape, CRISIS_KEYWORDS)), re.IGNORECASE)
+# Pre-compiled regex for faster crisis detection (using lowercase for performance)
+CRISIS_PATTERN = re.compile(r'|'.join(map(re.escape, [k.lower() for k in CRISIS_KEYWORDS])))
 
 def detect_crisis(message):
     """Detect if the message indicates a crisis situation using regex."""
-    return bool(CRISIS_PATTERN.search(message))
+    # Optimization: manual lowercase search is faster than re.IGNORECASE for many alternations
+    return bool(CRISIS_PATTERN.search(message.lower()))
 
 def get_crisis_response():
     """Return emergency resources and crisis response."""
