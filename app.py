@@ -135,7 +135,8 @@ def get_bot_response(messages):
         MAX_RESPONSE_CHARS = 4000
         for chunk in client.chat_stream(
             model="mistral-tiny",
-            messages=messages
+            messages=messages,
+            max_tokens=1000
         ):
             if chunk.choices[0].delta.content:
                 content = chunk.choices[0].delta.content
@@ -152,6 +153,11 @@ def get_bot_response(messages):
 
 def handle_user_input(prompt):
     """Update state with user input and check for crisis. Returns (success, is_crisis, crisis_text, sanitized_prompt)."""
+    # Server-side length validation as defense-in-depth against resource exhaustion
+    if len(prompt) > 2000:
+        st.toast("Your message is a bit too long. Please try to shorten it.", icon="⚠️")
+        return False, False, None, prompt
+
     current_time = time.time()
     time_since_last = current_time - st.session_state.get("last_message_time", 0)
     if time_since_last < 2.0:
