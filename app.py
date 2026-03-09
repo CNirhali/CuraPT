@@ -113,9 +113,9 @@ def get_crisis_response():
     return """
     I'm concerned about your safety. Please know that you're not alone, and help is available:
     
-    1. **National Suicide Prevention Lifeline**: [988](tel:988)
-    2. **Crisis Text Line**: [Text HOME to 741741](sms:741741)
-    3. **Emergency Services**: [911](tel:911)
+    - 📞 **National Suicide Prevention Lifeline**: [988](tel:988)
+    - 💬 **Crisis Text Line**: [Text HOME to 741741](sms:741741)
+    - 🚑 **Emergency Services**: [911](tel:911)
     
     These services are available 24/7 and are free and confidential.
     Would you like me to help you connect with any of these resources?
@@ -147,14 +147,14 @@ def get_bot_response(messages):
         # Log the full error server-side for debugging
         logger.error(f"Error in get_bot_response: {str(e)}", exc_info=True)
         # Return a generic error message to the user to prevent information leakage
-        yield "I apologize, but I'm having trouble connecting right now. Please try again later."
+        yield "I'm here for you, but I'm having a little trouble connecting right now. Please try again in a moment."
 
 def handle_user_input(prompt):
     """Update state with user input and check for crisis. Returns (success, is_crisis, crisis_text, sanitized_prompt)."""
     current_time = time.time()
     time_since_last = current_time - st.session_state.get("last_message_time", 0)
     if time_since_last < 2.0:
-        st.toast(f"Please wait {2.0 - time_since_last:.1f}s", icon="⏳")
+        st.toast(f"Take a breath! Please wait {2.0 - time_since_last:.1f}s", icon="🧘")
         return False, False, None, prompt
 
     st.session_state.last_message_time = current_time
@@ -206,13 +206,15 @@ def main():
         "Select an avatar",
         AVATAR_OPTIONS,
         index=AVATAR_OPTIONS.index(st.session_state.selected_avatar),
-        format_func=AVATAR_DISPLAY_NAMES.get
+        format_func=AVATAR_DISPLAY_NAMES.get,
+        help="Switching your companion will reset the current conversation."
     )
     
     if selected_avatar != st.session_state.selected_avatar:
         st.session_state.selected_avatar = selected_avatar
         st.session_state.messages = []
         st.session_state.confirm_delete = False
+        st.toast(f"Switched to {selected_avatar}", icon=AVATAR_ICONS[selected_avatar])
 
     st.sidebar.write(AVATARS[selected_avatar]["description"])
 
@@ -237,9 +239,9 @@ def main():
 
     with st.sidebar.expander("🛡️ Privacy & Safety"):
         st.write("""
-            - Conversations are confidential and not stored on our servers permanently.
-            - Your Mistral API key is used only for processing this session.
-            - This bot is not a replacement for professional care.
+            - 🔒 **Conversations are confidential** and not stored on our servers permanently.
+            - 🔑 Your **Mistral API key** is used only for processing this session.
+            - ⚕️ This bot is **not a replacement** for professional care.
         """)
 
     # Display chat messages from history
@@ -253,7 +255,7 @@ def main():
         cols = st.columns(len(suggestions))
         processed_suggestion = None
         for idx, suggestion in enumerate(suggestions):
-            if cols[idx].button(suggestion, use_container_width=True):
+            if cols[idx].button(suggestion, use_container_width=True, help="Click to ask about this"):
                 processed_suggestion = suggestion
 
         if processed_suggestion:
@@ -319,9 +321,9 @@ def main():
         🚨 **Emergency Resources**
 
         If you're in crisis, please contact:
-        - National Suicide Prevention Lifeline: [988](tel:988)
-        - Crisis Text Line: [Text HOME to 741741](sms:741741)
-        - Emergency Services: [911](tel:911)
+        - 📞 **National Suicide Prevention Lifeline**: [988](tel:988)
+        - 💬 **Crisis Text Line**: [Text HOME to 741741](sms:741741)
+        - 🚑 **Emergency Services**: [911](tel:911)
     """)
 
 if __name__ == "__main__":

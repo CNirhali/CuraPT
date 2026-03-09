@@ -70,7 +70,7 @@ def test_get_bot_response_error_masking(mocker):
     # Ensure the sensitive error message is NOT leaked
     assert "Sensitive API Error" not in response_content
     assert "sk-123456789" not in response_content
-    assert "I apologize" in response_content
+    assert "I'm here for you" in response_content
 
 def test_handle_user_input_stores_chatmessage_objects(mocker):
     # Mock streamlit session state with an object that supports both dict and attribute access
