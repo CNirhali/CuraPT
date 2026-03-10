@@ -229,36 +229,57 @@ def main():
     if selected_avatar != st.session_state.selected_avatar:
         st.session_state.selected_avatar = selected_avatar
         st.session_state.messages = []
-        st.session_state.confirm_delete = False
         st.toast(f"Switched to {selected_avatar}", icon=AVATAR_ICONS[selected_avatar])
 
     st.sidebar.write(AVATARS[selected_avatar]["description"])
 
     st.sidebar.markdown("---")
-    if "confirm_delete" not in st.session_state:
-        st.session_state.confirm_delete = False
 
-    if not st.session_state.confirm_delete:
-        if st.sidebar.button("🗑️ Clear Chat History", help="Delete all messages and start a new conversation"):
-            st.session_state.confirm_delete = True
-            st.rerun()
-    else:
-        st.sidebar.warning("Are you sure you want to clear the chat?")
-        col1, col2 = st.sidebar.columns(2)
-        if col1.button("✅ Yes", use_container_width=True, help="Confirm and delete all messages"):
+    # Manage Conversation Popover
+    with st.sidebar.popover("⚙️ Manage Conversation", use_container_width=True):
+        st.write("Settings for your current chat session.")
+
+        # Export History
+        if st.session_state.messages:
+            chat_text = f"Mental Health Ease Bot - {st.session_state.selected_avatar} Session\n"
+            chat_text += f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+            chat_text += "-" * 40 + "\n\n"
+            for msg in st.session_state.messages:
+                role = "Assistant" if msg.role == "assistant" else "You"
+                chat_text += f"{role}: {msg.content}\n\n"
+
+            st.download_button(
+                label="📥 Export Conversation",
+                data=chat_text,
+                file_name=f"mental_health_bot_chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                mime="text/plain",
+                help="Download a copy of your current conversation history.",
+                use_container_width=True
+            )
+        else:
+            st.info("No messages to export yet.")
+
+        st.markdown("---")
+
+        # Clear Chat History with confirmation
+        st.write("⚠️ **Destructive Actions**")
+        confirm_clear = st.checkbox("I want to clear this conversation", help="Check this to enable the clear button")
+        if st.button("🗑️ Clear Chat History",
+                     help="Delete all messages and start a new conversation",
+                     use_container_width=True,
+                     disabled=not confirm_clear,
+                     type="secondary"):
             st.session_state.messages = []
-            st.session_state.confirm_delete = False
-            st.rerun()
-        if col2.button("❌ No", use_container_width=True, help="Cancel and keep conversation"):
-            st.session_state.confirm_delete = False
+            st.toast("Conversation cleared 🌱")
             st.rerun()
 
     with st.sidebar.expander("🛡️ Privacy & Safety"):
         st.write("""
             - 🔒 **Conversations are confidential** and not stored on our servers permanently.
             - 🔑 Your **Mistral API key** is used only for processing this session.
-            - ⚕️ This bot is **not a replacement** for professional care.
         """)
+
+    st.sidebar.info("⚕️ This bot is **not a replacement** for professional care. If you're in distress, please use the emergency resources below.")
 
     # Display chat messages from history
     if not st.session_state.messages:
