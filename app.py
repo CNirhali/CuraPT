@@ -8,14 +8,18 @@ from dotenv import load_dotenv
 from mistralai.client import MistralClient
 from mistralai.models.chat_completion import ChatMessage
 
-# Load environment variables
+# Load environment variables (ensure sensitive keys are not hardcoded)
 load_dotenv()
 
-# Pre-compiled regex for API key sanitization
+# Pre-compiled regex for API key sanitization (Defense-in-depth against secret leakage)
 SANITIZATION_PATTERN = re.compile(r'\bsk-[a-zA-Z0-9]+\b')
 
 def sanitize_error(message):
-    """Redact sensitive information like API keys from error messages."""
+    """
+    Redact sensitive information like API keys from strings.
+    This provides defense-in-depth by preventing secrets from being displayed in the UI,
+    stored in session history, or sent to external providers.
+    """
     if not isinstance(message, str):
         message = str(message)
     # Optimization: fast-path check to avoid regex if no potential key is present
@@ -146,9 +150,9 @@ def get_bot_response(messages):
                     break
                 yield content
     except Exception as e:
-        # Log the full error server-side for debugging
+        # Log the full error server-side for debugging (SanitizedFormatter masks secrets in logs)
         logger.error(f"Error in get_bot_response: {str(e)}", exc_info=True)
-        # Return a generic error message to the user to prevent information leakage
+        # Return a generic error message to the user to prevent information leakage (OWASP A03:2021)
         yield "I'm here for you, but I'm having a little trouble connecting right now. Please try again in a moment."
 
 def handle_user_input(prompt):
@@ -166,7 +170,7 @@ def handle_user_input(prompt):
 
     st.session_state.last_message_time = current_time
 
-    # Sanitize user input to prevent accidental leakage of sensitive info (like API keys) to the provider
+    # Sanitize user input immediately (Defense-in-depth: prevent secrets from reaching the LLM or session state)
     sanitized_prompt = sanitize_error(prompt)
 
     # Add user message to chat as ChatMessage object for performance

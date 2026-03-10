@@ -28,3 +28,8 @@
 **Vulnerability:** Accidental leakage of secrets (API keys) by the user into chat history, provider requests, and logs.
 **Learning:** Redacting secrets only on the server-side output is insufficient; user input must be sanitized at the ingestion point to prevent secrets from ever reaching the LLM provider or being stored in session state. Additionally, simple regex patterns for keys (like `sk-[a-zA-Z0-9]+`) can cause false positives in normal text (e.g., "risk-based").
 **Prevention:** Sanitize user input immediately in the processing pipeline (e.g., `handle_user_input`) and use word boundaries (`\b`) in redaction regexes to ensure only full tokens matching the secret pattern are masked.
+
+## 2026-03-03 - [Vulnerable Dependencies in requirements.txt]
+**Vulnerability:** Several project dependencies were pinned to versions with known critical and high-severity vulnerabilities (e.g., Streamlit 1.28.2 vulnerable to XSS, Pillow 10.1.0 vulnerable to Arbitrary Code Execution).
+**Learning:** Even with robust internal security logic, the application remains vulnerable if the underlying platform and libraries are insecure. Regular automated dependency auditing is essential.
+**Prevention:** Pin dependencies to secure versions and use tools like `pip-audit` to identify and resolve vulnerabilities in third-party packages.

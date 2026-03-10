@@ -1,5 +1,5 @@
 mistralai==0.0.7
-python-dotenv==1.0.0
+python-dotenv==1.2.2
 pydantic==2.5.2
-pillow==10.1.0
-streamlit==1.28.2
+pillow==12.1.1
+streamlit==1.55.0
