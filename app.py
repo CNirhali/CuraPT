@@ -107,9 +107,14 @@ CRISIS_KEYWORDS = [
 ]
 # Pre-compiled regex for faster crisis detection (using lowercase for performance)
 CRISIS_PATTERN = re.compile(r'|'.join(map(re.escape, [k.lower() for k in CRISIS_KEYWORDS])))
+# Shortest crisis keywords like "suicide" or "kill me" are 7 characters long
+MIN_CRISIS_KEYWORD_LEN = 7
 
 def detect_crisis(message):
     """Detect if the message indicates a crisis situation using regex."""
+    # Optimization: return False immediately for very short, safe inputs to avoid string processing
+    if len(message) < MIN_CRISIS_KEYWORD_LEN:
+        return False
     # Optimization: manual lowercase search is faster than re.IGNORECASE for many alternations
     return bool(CRISIS_PATTERN.search(message.lower()))
 
@@ -257,10 +262,11 @@ def main():
 
     # Display chat messages from history
     if not st.session_state.messages:
-        with st.chat_message("assistant", avatar=AVATARS[selected_avatar]["icon"]):
+        # Optimization: use pre-calculated avatar icon and combine write calls to reduce UI traffic
+        with st.chat_message("assistant", avatar=AVATAR_ICONS[selected_avatar]):
             greeting = get_time_based_greeting()
-            st.write(f"{greeting}! I'm your **{selected_avatar}**. How can I support you today?")
-            st.write("Click on a suggestion below or type your own message to start:")
+            st.write(f"{greeting}! I'm your **{selected_avatar}**. How can I support you today?\n\n"
+                     "Click on a suggestion below or type your own message to start:")
 
         suggestions = AVATARS[selected_avatar]["suggestions"]
         cols = st.columns(len(suggestions))

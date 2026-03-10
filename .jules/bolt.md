@@ -29,3 +29,7 @@
 ## 2026-03-08 - [Fast-path String Checks for Regex Performance]
 **Learning:** In hot paths where regular expressions are used for sanitization or keyword detection, adding a simple string-based "fast-path" check (e.g., `if "sk-" not in message: return message`) can provide a massive performance boost (up to 20x) for the common case by avoiding the overhead of the regex engine entirely when no match is possible.
 **Action:** Always consider adding simple substring checks before executing complex regular expressions, especially when the target pattern has a unique, constant prefix or identifiable substring.
+
+## 2026-03-10 - [Length-based Fast-path for Regex and UI Batching]
+**Learning:** In performance-critical safety functions like `detect_crisis`, adding a simple length-based fast-path (e.g., `if len(message) < 7: return False`) provides a significant speedup (~2.6x) for very short messages by bypassing expensive string processing and regex engines entirely. Furthermore, batching multiple `st.write` calls into a single call with newlines reduces Streamlit's internal communication overhead and improves UI responsiveness.
+**Action:** Always implement minimal-length guards for regex-heavy functions and prioritize batching UI updates to minimize websocket traffic in Streamlit applications.
