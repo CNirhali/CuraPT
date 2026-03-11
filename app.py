@@ -95,6 +95,14 @@ AVATAR_DISPLAY_NAMES = {
     name: f"{data['icon']} {name}"
     for name, data in AVATARS.items()
 }
+AVATAR_DESCRIPTIONS = {
+    name: data["description"]
+    for name, data in AVATARS.items()
+}
+AVATAR_SUGGESTIONS = {
+    name: data["suggestions"]
+    for name, data in AVATARS.items()
+}
 
 # Crisis detection keywords and pre-compiled regex for performance
 CRISIS_KEYWORDS = [
@@ -206,8 +214,7 @@ def get_time_based_greeting():
         return "Good evening"
 
 def main():
-    st.title("Mental Health Ease Bot")
-    st.write("Your AI companion for mental well-being and personal growth")
+    st.markdown("# Mental Health Ease Bot\nYour AI companion for mental well-being and personal growth")
 
     # Initialize session state
     if "messages" not in st.session_state:
@@ -232,7 +239,7 @@ def main():
         st.session_state.messages = []
         st.toast(f"Switched to {selected_avatar}", icon=AVATAR_ICONS[selected_avatar])
 
-    st.sidebar.write(AVATARS[selected_avatar]["description"])
+    st.sidebar.write(AVATAR_DESCRIPTIONS[selected_avatar])
 
     st.sidebar.markdown("---")
 
@@ -242,12 +249,17 @@ def main():
 
         # Export History
         if st.session_state.messages:
-            chat_text = f"Mental Health Ease Bot - {st.session_state.selected_avatar} Session\n"
-            chat_text += f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-            chat_text += "-" * 40 + "\n\n"
-            for msg in st.session_state.messages:
-                role = "Assistant" if msg.role == "assistant" else "You"
-                chat_text += f"{role}: {msg.content}\n\n"
+            # Optimization: Use list join for O(N) performance instead of iterative string concatenation
+            export_parts = [
+                f"Mental Health Ease Bot - {st.session_state.selected_avatar} Session",
+                f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                "-" * 40 + "\n"
+            ]
+            export_parts.extend(
+                f"{'Assistant' if msg.role == 'assistant' else 'You'}: {msg.content}\n"
+                for msg in st.session_state.messages
+            )
+            chat_text = "\n".join(export_parts) + "\n"
 
             st.download_button(
                 label="📥 Export Conversation",
@@ -290,7 +302,7 @@ def main():
             st.write(f"{greeting}! I'm your **{selected_avatar}**. How can I support you today?\n\n"
                      "Click on a suggestion below or type your own message to start:")
 
-        suggestions = AVATARS[selected_avatar]["suggestions"]
+        suggestions = AVATAR_SUGGESTIONS[selected_avatar]
         cols = st.columns(len(suggestions))
         processed_suggestion = None
         for idx, suggestion in enumerate(suggestions):
