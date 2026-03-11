@@ -57,7 +57,8 @@ AVATARS = {
             "How can I deal with my anxiety?",
             "I've been feeling low lately.",
             "Can you help me with a coping strategy?"
-        ]
+        ],
+        "thinking_msg": "Reflecting on your words..."
     },
     "Life Coach": {
         "icon": "⚡",
@@ -67,7 +68,8 @@ AVATARS = {
             "How can I stay motivated today?",
             "I want to set some personal goals.",
             "How can I build more resilience?"
-        ]
+        ],
+        "thinking_msg": "Gathering some motivation for you..."
     },
     "Friend": {
         "icon": "🤗",
@@ -77,7 +79,8 @@ AVATARS = {
             "I just need someone to talk to.",
             "I had a rough day at work.",
             "Can you tell me something positive?"
-        ]
+        ],
+        "thinking_msg": "Listening closely..."
     }
 }
 
@@ -241,11 +244,11 @@ def main():
 
         # Export History
         if st.session_state.messages:
-            chat_text = f"Mental Health Ease Bot - {st.session_state.selected_avatar} Session\n"
+            chat_text = f"Mental Health Ease Bot - {selected_avatar} Session\n"
             chat_text += f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
             chat_text += "-" * 40 + "\n\n"
             for msg in st.session_state.messages:
-                role = "Assistant" if msg.role == "assistant" else "You"
+                role = selected_avatar if msg.role == "assistant" else "You"
                 chat_text += f"{role}: {msg.content}\n\n"
 
             st.download_button(
@@ -263,7 +266,7 @@ def main():
 
         # Clear Chat History with confirmation
         st.write("⚠️ **Destructive Actions**")
-        confirm_clear = st.checkbox("I want to clear this conversation", help="Check this to enable the clear button")
+        confirm_clear = st.checkbox("I'm ready for a fresh start", help="Check this to enable the clear button")
         if st.button("🗑️ Clear Chat History",
                      help="Delete all messages and start a new conversation",
                      use_container_width=True,
@@ -293,7 +296,7 @@ def main():
         cols = st.columns(len(suggestions))
         processed_suggestion = None
         for idx, suggestion in enumerate(suggestions):
-            if cols[idx].button(suggestion, use_container_width=True, help="Click to ask about this"):
+            if cols[idx].button(suggestion, use_container_width=True, help="Click to explore this topic"):
                 processed_suggestion = suggestion
 
         if processed_suggestion:
@@ -309,9 +312,10 @@ def main():
                 st.write(message.content)
         prompt = None
 
-    # Chat input is always visible unless a suggestion was just clicked
+    # Chat input is always visible, but only capture its value if prompt hasn't been set by a suggestion
+    user_input = st.chat_input("How are you feeling today?", max_chars=2000)
     if not prompt:
-        prompt = st.chat_input("How are you feeling today?", max_chars=2000)
+        prompt = user_input
 
     # Message processing
     if prompt:
@@ -330,7 +334,8 @@ def main():
 
                 with st.chat_message("assistant", avatar=AVATAR_ICONS[selected_avatar]):
                     response_placeholder = st.empty()
-                    response_placeholder.markdown("*(thinking...)*")
+                    thinking_msg = AVATARS[selected_avatar].get("thinking_msg", "Reflecting...")
+                    response_placeholder.markdown(f"*{thinking_msg}* 💭")
                     full_response = ""
                     # Use token buffering to reduce UI update frequency and websocket traffic
                     chunk_count = 0

@@ -5,3 +5,7 @@
 ## 2025-05-15 - [Safety Disclaimer Visibility]
 **Learning:** Critical safety information, such as medical disclaimers, should not be hidden inside collapsed UI elements (like expanders or tabs). Visibility directly impacts accessibility and user safety.
 **Action:** Place essential safety notices in persistent, prominent UI components (like `st.sidebar.info` or `st.sidebar.caption`) that are always visible to the user.
+
+## 2025-05-15 - [Layout Stability & Persistence]
+**Learning:** In Streamlit, widgets that are conditionally rendered (e.g., inside an `if not prompt:` block) will disappear from the UI during reruns when the condition is false, causing jarring layout shifts. This "flicker" breaks the user's flow and makes the interface feel unstable.
+**Action:** Always render persistent interaction elements like `st.chat_input` outside of conditional logic. Capture their value and then use logic to determine which input (suggestion vs. text) to process.
