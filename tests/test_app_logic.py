@@ -25,6 +25,13 @@ def test_detect_crisis():
     assert detect_crisis("How can I improve my productivity?") == False
     assert detect_crisis("I'm happy with my progress") == False
 
+def test_detect_crisis_false_positives():
+    # These should NOT trigger crisis detection if word boundaries are respected
+    assert detect_crisis("Can you send it all to me?") == False
+    assert detect_crisis("That was a maskill message") == False
+    assert detect_crisis("I'm reading about the skill mechanism") == False
+    assert detect_crisis("Don't bend it all out of shape") == False
+
 def test_get_crisis_response():
     # Verify the presence of actionable links with descriptive text
     response = get_crisis_response()
