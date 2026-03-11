@@ -106,7 +106,8 @@ CRISIS_KEYWORDS = [
     "kill yourself", "ending your life", "hurt yourself"
 ]
 # Pre-compiled regex for faster crisis detection (using lowercase for performance)
-CRISIS_PATTERN = re.compile(r'|'.join(map(re.escape, [k.lower() for k in CRISIS_KEYWORDS])))
+# Use word boundaries (\b) to prevent false positives (e.g., "send it all" matching "end it all")
+CRISIS_PATTERN = re.compile(r'\b(?:' + r'|'.join(map(re.escape, [k.lower() for k in CRISIS_KEYWORDS])) + r')\b')
 # Shortest crisis keywords like "suicide" or "kill me" are 7 characters long
 MIN_CRISIS_KEYWORD_LEN = 7
 
