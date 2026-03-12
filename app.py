@@ -262,7 +262,8 @@ def main():
                 f"{st.session_state.selected_avatar if msg.role == 'assistant' else 'You'}: {msg.content}\n"
                 for msg in st.session_state.messages
             )
-            chat_text = "\n".join(export_parts) + "\n"
+            # Apply defense-in-depth sanitization to the final export transcript
+            chat_text = sanitize_error("\n".join(export_parts) + "\n")
 
             st.download_button(
                 label="📥 Export Conversation",
@@ -350,18 +351,32 @@ def main():
                     full_response = ""
                     # Use token buffering to reduce UI update frequency and websocket traffic
                     chunk_count = 0
+                    aborted = False
+                    CRISIS_FALLBACK = "I'm sorry, I cannot fulfill this request as it may contain unsafe content. If you're in distress, please use the emergency resources in the sidebar."
+
                     for response_chunk in get_bot_response(messages):
                         full_response += response_chunk
                         chunk_count += 1
+
+                        # Incremental crisis check for immediate intervention (Defense-in-depth)
+                        if detect_crisis(full_response):
+                            logger.warning("Safety: Crisis detected in AI response during streaming. Aborting.")
+                            full_response = CRISIS_FALLBACK
+                            aborted = True
+                            break
+
                         if chunk_count % 5 == 0:
                             # Sanitize incremental response for safety
                             response_placeholder.markdown(sanitize_error(full_response) + "▌")
 
                     # Final safety and sanitization check
-                    final_response = sanitize_error(full_response)
-                    if detect_crisis(final_response):
-                        logger.warning("Safety: Crisis detected in AI response. Redacting.")
-                        final_response = "I'm sorry, I cannot fulfill this request as it may contain unsafe content. If you're in distress, please use the emergency resources in the sidebar."
+                    if not aborted:
+                        final_response = sanitize_error(full_response)
+                        if detect_crisis(final_response):
+                            logger.warning("Safety: Crisis detected in AI response at final check. Redacting.")
+                            final_response = CRISIS_FALLBACK
+                    else:
+                        final_response = full_response
 
                     response_placeholder.markdown(final_response)
                     st.session_state.messages.append(ChatMessage(role="assistant", content=final_response))

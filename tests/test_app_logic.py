@@ -225,3 +225,42 @@ def test_bot_response_sanitization_and_safety(mocker):
         final_response = "Redacted"
 
     assert final_response == "Redacted"
+
+def test_export_sanitization(mocker):
+    from app import sanitize_error
+    import streamlit as st
+    from mistralai.models.chat_completion import ChatMessage
+    from datetime import datetime
+
+    # Mock session state with a secret that somehow got in
+    class MockState:
+        def __init__(self):
+            self.messages = [
+                ChatMessage(role="user", content="My key is sk-1234567890abcdef1234567890abcdef"),
+                ChatMessage(role="assistant", content="I will keep it safe.")
+            ]
+            self.selected_avatar = "Therapist"
+        def get(self, k, d):
+            return getattr(self, k, d)
+        def __getitem__(self, k):
+            return getattr(self, k)
+
+    mock_state = MockState()
+    mocker.patch.object(st, "session_state", mock_state)
+
+    # Simulate the export logic in app.py
+    export_parts = [
+        f"Mental Health Ease Bot - {st.session_state.selected_avatar} Session",
+        f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        "-" * 40 + "\n"
+    ]
+    export_parts.extend(
+        f"{st.session_state.selected_avatar if msg.role == 'assistant' else 'You'}: {msg.content}\n"
+        for msg in st.session_state.messages
+    )
+
+    # This is what we added in app.py
+    chat_text = sanitize_error("\n".join(export_parts) + "\n")
+
+    assert "sk-1234567890abcdef1234567890abcdef" not in chat_text
+    assert "[REDACTED_API_KEY]" in chat_text
