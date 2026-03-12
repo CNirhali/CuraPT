@@ -52,6 +52,7 @@ AVATARS = {
     "Therapist": {
         "icon": "🧘",
         "description": "A compassionate therapist who provides professional guidance and support",
+        "thinking_msg": "Reflecting on your words...",
         "system_prompt": "You are a compassionate and professional therapist. Your role is to:\n1. Provide empathetic support and guidance\n2. Help users develop coping strategies\n3. Encourage professional help when needed\n4. Maintain appropriate boundaries\n5. Focus on evidence-based therapeutic approaches",
         "suggestions": [
             "How can I deal with my anxiety?",
@@ -62,6 +63,7 @@ AVATARS = {
     "Life Coach": {
         "icon": "⚡",
         "description": "An energetic life coach focused on personal growth and achievement",
+        "thinking_msg": "Formulating a plan for your growth...",
         "system_prompt": "You are an enthusiastic life coach. Your role is to:\n1. Help users set and achieve personal goals\n2. Provide motivation and accountability\n3. Share practical strategies for self-improvement\n4. Focus on building confidence and resilience\n5. Encourage positive thinking and action",
         "suggestions": [
             "How can I stay motivated today?",
@@ -72,6 +74,7 @@ AVATARS = {
     "Friend": {
         "icon": "🤗",
         "description": "A supportive friend who listens and offers understanding",
+        "thinking_msg": "Thinking of how to support you...",
         "system_prompt": "You are a caring and understanding friend. Your role is to:\n1. Provide emotional support and validation\n2. Listen actively and show empathy\n3. Share personal experiences when relevant\n4. Offer practical advice from a friend's perspective\n5. Maintain a warm and casual conversation style",
         "suggestions": [
             "I just need someone to talk to.",
@@ -256,7 +259,7 @@ def main():
                 "-" * 40 + "\n"
             ]
             export_parts.extend(
-                f"{'Assistant' if msg.role == 'assistant' else 'You'}: {msg.content}\n"
+                f"{st.session_state.selected_avatar if msg.role == 'assistant' else 'You'}: {msg.content}\n"
                 for msg in st.session_state.messages
             )
             chat_text = "\n".join(export_parts) + "\n"
@@ -276,7 +279,7 @@ def main():
 
         # Clear Chat History with confirmation
         st.write("⚠️ **Destructive Actions**")
-        confirm_clear = st.checkbox("I want to clear this conversation", help="Check this to enable the clear button")
+        confirm_clear = st.checkbox("I'm ready for a fresh start", help="Check this to enable the clear button")
         if st.button("🗑️ Clear Chat History",
                      help="Delete all messages and start a new conversation",
                      use_container_width=True,
@@ -306,7 +309,7 @@ def main():
         cols = st.columns(len(suggestions))
         processed_suggestion = None
         for idx, suggestion in enumerate(suggestions):
-            if cols[idx].button(suggestion, use_container_width=True, help="Click to ask about this"):
+            if cols[idx].button(suggestion, use_container_width=True, help=f"Ask {selected_avatar}: '{suggestion}'"):
                 processed_suggestion = suggestion
 
         if processed_suggestion:
@@ -343,7 +346,7 @@ def main():
 
                 with st.chat_message("assistant", avatar=AVATAR_ICONS[selected_avatar]):
                     response_placeholder = st.empty()
-                    response_placeholder.markdown("*(thinking...)*")
+                    response_placeholder.markdown(f"💬 *{AVATARS[selected_avatar]['thinking_msg']}*")
                     full_response = ""
                     # Use token buffering to reduce UI update frequency and websocket traffic
                     chunk_count = 0
