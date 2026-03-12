@@ -33,3 +33,7 @@
 ## 2026-03-10 - [Length-based Fast-path for Regex and UI Batching]
 **Learning:** In performance-critical safety functions like `detect_crisis`, adding a simple length-based fast-path (e.g., `if len(message) < 7: return False`) provides a significant speedup (~2.6x) for very short messages by bypassing expensive string processing and regex engines entirely. Furthermore, batching multiple `st.write` calls into a single call with newlines reduces Streamlit's internal communication overhead and improves UI responsiveness.
 **Action:** Always implement minimal-length guards for regex-heavy functions and prioritize batching UI updates to minimize websocket traffic in Streamlit applications.
+
+## 2026-03-12 - [Sliding Window for Incremental Safety Checks]
+**Learning:** Performing regex-based safety checks on a continuously growing string in an LLM streaming loop leads to (N^2)$ algorithmic complexity, causing significant lag as the response length increases. Using a fixed-size sliding window (e.g., 300 characters) for incremental checks maintains (N)$ complexity while ensuring immediate intervention for harmful content. A final full-string check is still required to guarantee absolute correctness for keywords that might span window boundaries.
+**Action:** Always use sliding windows for safety or sanitization logic inside high-frequency streaming loops.

@@ -359,7 +359,8 @@ def main():
                         chunk_count += 1
 
                         # Incremental crisis check for immediate intervention (Defense-in-depth)
-                        if detect_crisis(full_response):
+                        # Optimization: Check only the last 300 chars to avoid O(N^2) complexity as response grows
+                        if detect_crisis(full_response[-300:]):
                             logger.warning("Safety: Crisis detected in AI response during streaming. Aborting.")
                             full_response = CRISIS_FALLBACK
                             aborted = True
