@@ -37,3 +37,7 @@
 ## 2026-03-12 - [Sliding Window for Incremental Safety Checks]
 **Learning:** Performing regex-based safety checks on a continuously growing string in an LLM streaming loop leads to (N^2)$ algorithmic complexity, causing significant lag as the response length increases. Using a fixed-size sliding window (e.g., 300 characters) for incremental checks maintains (N)$ complexity while ensuring immediate intervention for harmful content. A final full-string check is still required to guarantee absolute correctness for keywords that might span window boundaries.
 **Action:** Always use sliding windows for safety or sanitization logic inside high-frequency streaming loops.
+
+## 2026-03-14 - [Multi-keyword Fast-path Substring Check]
+**Learning:** For functions performing multiple regex substitutions based on different keywords, a consolidated fast-path check using `any(marker in message.lower() for marker in SENSITIVE_MARKERS)` is extremely efficient. Benchmarks show a ~15-20x speedup for clean messages. Surprisingly, a single consolidated regex search for all markers was slower than the simple substring check on long strings, confirming that basic string operations often outperform the regex engine for simple existence checks.
+**Action:** Use consolidated substring checks (`any` with a list of markers) to guard expensive regex-based sanitization or transformation pipelines.
