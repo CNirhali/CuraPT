@@ -1,0 +1,12 @@
+[logger]
+# Disable error details in the UI for security
+level = "error"
+
+[client]
+# Disable error details in the UI for security
+showErrorDetails = false
+toolbarMode = "minimal"
+
+[browser]
+# Disable telemetry for privacy
+gatherUsageStats = false
