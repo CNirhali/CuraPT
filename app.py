@@ -11,22 +11,28 @@ from mistralai.models.chat_completion import ChatMessage
 # Load environment variables (ensure sensitive keys are not hardcoded)
 load_dotenv()
 
-# Pre-compiled regex for API key sanitization (Defense-in-depth against secret leakage)
-SANITIZATION_PATTERN = re.compile(r'\bsk-[a-zA-Z0-9]+\b')
+# Pre-compiled regex for sensitive data sanitization (Defense-in-depth against secret leakage)
+# Includes Mistral keys, generic password/token patterns, and Bearer tokens
+SANITIZATION_PATTERNS = [
+    (re.compile(r'\bsk-[a-zA-Z0-9]+\b'), '[REDACTED_API_KEY]'),
+    (re.compile(r'(?i)\b(password|passwd|secret|token|key|api_key)\s*[:=]\s*[^\s,;]+'), r'\1=[REDACTED]'),
+    (re.compile(r'(?i)Bearer\s+[a-zA-Z0-9._\-\/+=]+'), 'Bearer [REDACTED]')
+]
 
 def sanitize_error(message):
     """
-    Redact sensitive information like API keys from strings.
+    Redact sensitive information like API keys, passwords, and tokens from strings.
     This provides defense-in-depth by preventing secrets from being displayed in the UI,
     stored in session history, or sent to external providers.
     """
     if not isinstance(message, str):
         message = str(message)
-    # Optimization: fast-path check to avoid regex if no potential key is present
-    if "sk-" not in message:
-        return message
-    # Mask Mistral API keys with word boundaries to avoid false positives: \bsk-[a-zA-Z0-9]+\b
-    return SANITIZATION_PATTERN.sub('[REDACTED_API_KEY]', message)
+
+    sanitized = message
+    for pattern, replacement in SANITIZATION_PATTERNS:
+        sanitized = pattern.sub(replacement, sanitized)
+
+    return sanitized
 
 class SanitizedFormatter(logging.Formatter):
     """Custom formatter to redact sensitive information from all log output, including tracebacks."""
