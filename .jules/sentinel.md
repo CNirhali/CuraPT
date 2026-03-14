@@ -33,3 +33,8 @@
 **Vulnerability:** Several project dependencies were pinned to versions with known critical and high-severity vulnerabilities (e.g., Streamlit 1.28.2 vulnerable to XSS, Pillow 10.1.0 vulnerable to Arbitrary Code Execution).
 **Learning:** Even with robust internal security logic, the application remains vulnerable if the underlying platform and libraries are insecure. Regular automated dependency auditing is essential.
 **Prevention:** Pin dependencies to secure versions and use tools like `pip-audit` to identify and resolve vulnerabilities in third-party packages.
+
+## 2026-03-14 - [Regex Precision for Secret Redaction]
+**Vulnerability:** Incomplete redaction of secrets when they are enclosed in quotes or use non-standard separators.
+**Learning:** Simple key-value regex patterns (e.g., `key\s*[:=]\s*[^\s,;]+`) fail to catch secrets that contain spaces (if quoted) or preserve the original formatting, which can lead to information leakage or inconsistent UI/logs.
+**Prevention:** Use capture groups to preserve original separators and handle multiple quoting styles (single and double quotes) in sanitization regexes to ensure robust secret masking across various input formats.

@@ -15,7 +15,8 @@ load_dotenv()
 # Includes Mistral keys, generic password/token patterns, and Bearer tokens
 SANITIZATION_PATTERNS = [
     (re.compile(r'\bsk-[a-zA-Z0-9]+\b'), '[REDACTED_API_KEY]'),
-    (re.compile(r'(?i)\b(password|passwd|secret|token|key|api_key)\s*[:=]\s*[^\s,;]+'), r'\1=[REDACTED]'),
+    # Enhanced pattern to handle quoted secrets and preserve original separators
+    (re.compile(r'(?i)\b(password|passwd|secret|token|key|api_key)(\s*[:=]\s*)(?:"[^"]*"|\'[^\']*\'|[^\s,;]+)'), r'\1\2[REDACTED]'),
     (re.compile(r'(?i)Bearer\s+[a-zA-Z0-9._\-\/+=]+'), 'Bearer [REDACTED]')
 ]
 # Optimization: Substring markers to trigger expensive regex execution
