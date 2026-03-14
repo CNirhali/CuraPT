@@ -25,11 +25,23 @@ class TestSanitizeError(unittest.TestCase):
         self.assertIn("password=[REDACTED]", sanitized)
         self.assertNotIn("my_secret_pass", sanitized)
 
+    def test_sanitize_error_quoted_password(self):
+        msg = 'connection failed with password: "my secret pass"'
+        sanitized = sanitize_error(msg)
+        self.assertIn("password: [REDACTED]", sanitized)
+        self.assertNotIn("my secret pass", sanitized)
+
     def test_sanitize_error_generic_token(self):
         msg = "api_key: some_long_token_string"
         sanitized = sanitize_error(msg)
-        self.assertIn("api_key=[REDACTED]", sanitized)
+        self.assertIn("api_key: [REDACTED]", sanitized)
         self.assertNotIn("some_long_token_string", sanitized)
+
+    def test_sanitize_error_complex_separator(self):
+        msg = "API_KEY  =  'hidden_value'"
+        sanitized = sanitize_error(msg)
+        self.assertIn("API_KEY  =  [REDACTED]", sanitized)
+        self.assertNotIn("hidden_value", sanitized)
 
     def test_sanitize_error_bearer_token(self):
         msg = "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
