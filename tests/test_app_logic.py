@@ -264,3 +264,9 @@ def test_export_sanitization(mocker):
 
     assert "sk-1234567890abcdef1234567890abcdef" not in chat_text
     assert "[REDACTED_API_KEY]" in chat_text
+
+def test_avatars_config_completeness():
+    from app import AVATARS
+    for name, data in AVATARS.items():
+        assert "chat_placeholder" in data, f"Avatar {name} is missing chat_placeholder"
+        assert len(data["chat_placeholder"]) > 0, f"Avatar {name} has an empty chat_placeholder"
