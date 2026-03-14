@@ -115,6 +115,10 @@ AVATAR_PLACEHOLDERS = {
     name: data["chat_placeholder"]
     for name, data in AVATARS.items()
 }
+AVATAR_THINKING_MSGS = {
+    name: data["thinking_msg"]
+    for name, data in AVATARS.items()
+}
 AVATAR_DISPLAY_NAMES = {
     name: f"{data['icon']} {name}"
     for name, data in AVATARS.items()
@@ -372,7 +376,7 @@ def main():
 
                 with st.chat_message("assistant", avatar=AVATAR_ICONS[selected_avatar]):
                     response_placeholder = st.empty()
-                    response_placeholder.markdown(f"💬 *{AVATARS[selected_avatar]['thinking_msg']}*")
+                    response_placeholder.markdown(f"💬 *{AVATAR_THINKING_MSGS[selected_avatar]}*")
                     full_response = ""
                     # Use token buffering to reduce UI update frequency and websocket traffic
                     chunk_count = 0
