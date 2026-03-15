@@ -296,7 +296,14 @@ def main():
         st.session_state.messages = []
         st.toast(f"Switched to {selected_avatar}", icon=AVATAR_ICONS[selected_avatar])
 
+    # Ensure the conversation starts with a persona-specific welcome message
+    if not st.session_state.messages:
+        greeting = get_time_based_greeting()
+        welcome_msg = f"{greeting}! I'm your **{selected_avatar}**. How can I support you today?"
+        st.session_state.messages.append(ChatMessage(role="assistant", content=welcome_msg))
+
     st.sidebar.write(AVATAR_DESCRIPTIONS[selected_avatar])
+    st.sidebar.caption(f"🟢 {selected_avatar} is ready to listen")
     st.sidebar.caption(f"🟢 {selected_avatar} is here for you")
 
     st.sidebar.markdown("---")
@@ -327,6 +334,7 @@ def main():
                 st.session_state.export_cache_key = cache_key
 
             st.download_button(
+                label=f"📥 Export Conversation ({len(st.session_state.messages)} messages)",
                 label=f"📥 Export Conversation ({msg_count} message{'s' if msg_count != 1 else ''})",
                 data=chat_text,
                 label="📥 Export Conversation",
@@ -362,6 +370,22 @@ def main():
     st.sidebar.info("⚕️ This bot is **not a replacement** for professional care. If you're in distress, please use the emergency resources below.")
 
     # Display chat messages from history
+    assistant_icon = AVATAR_ICONS[st.session_state.selected_avatar]
+    for message in st.session_state.messages:
+        avatar = assistant_icon if message.role == "assistant" else "👤"
+        with st.chat_message(message.role, avatar=avatar):
+            st.write(message.content)
+
+    processed_suggestion = None
+    if len(st.session_state.messages) == 1:
+        st.caption("Click on a suggestion below or type your own message to start:")
+        suggestions = AVATAR_SUGGESTIONS[selected_avatar]
+        cols = st.columns(len(suggestions))
+        for idx, suggestion in enumerate(suggestions):
+            if cols[idx].button(suggestion, use_container_width=True, help=f"Ask {selected_avatar}: '{suggestion}'"):
+                processed_suggestion = suggestion
+
+    prompt = processed_suggestion if processed_suggestion else None
     if not st.session_state.messages:
         # Optimization: use pre-calculated avatar icon and combine write calls to reduce UI traffic
         with st.chat_message("assistant", avatar=AVATAR_ICONS[selected_avatar]):
