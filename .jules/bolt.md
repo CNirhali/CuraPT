@@ -41,3 +41,7 @@
 ## 2026-03-14 - [Multi-keyword Fast-path Substring Check]
 **Learning:** For functions performing multiple regex substitutions based on different keywords, a consolidated fast-path check using `any(marker in message.lower() for marker in SENSITIVE_MARKERS)` is extremely efficient. Benchmarks show a ~15-20x speedup for clean messages. Surprisingly, a single consolidated regex search for all markers was slower than the simple substring check on long strings, confirming that basic string operations often outperform the regex engine for simple existence checks.
 **Action:** Use consolidated substring checks (`any` with a list of markers) to guard expensive regex-based sanitization or transformation pipelines.
+
+## 2026-03-15 - [Specificity in Fast-path Markers and Export Caching]
+**Learning:** Broad fast-path markers (e.g., 'pass') can cause common words (e.g., 'compassion') to trigger expensive regex-based slow-paths in every interaction, negating the optimization. Using more specific markers like 'password' improves the hit rate of the fast-path. Furthermore, caching expensive O(N) operations like conversation export generation in `st.session_state` (using a compound key like avatar + message count) significantly reduces per-rerun CPU overhead as history grows.
+**Action:** Always ensure fast-path markers are specific enough to avoid common false positives and cache large data transformations in session state to protect against Streamlit's frequent script reruns.
