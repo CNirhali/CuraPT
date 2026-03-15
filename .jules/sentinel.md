@@ -38,3 +38,13 @@
 **Vulnerability:** Incomplete redaction of secrets when they are enclosed in quotes or use non-standard separators.
 **Learning:** Simple key-value regex patterns (e.g., `key\s*[:=]\s*[^\s,;]+`) fail to catch secrets that contain spaces (if quoted) or preserve the original formatting, which can lead to information leakage or inconsistent UI/logs.
 **Prevention:** Use capture groups to preserve original separators and handle multiple quoting styles (single and double quotes) in sanitization regexes to ensure robust secret masking across various input formats.
+
+## 2026-03-15 - [Safety Bypass via Homoglyph Obfuscation]
+**Vulnerability:** Crisis detection filters using simple regex or keyword matching can be bypassed using homoglyphs (lookalike characters from different alphabets, e.g., Cyrillic 'і' for Latin 'i') or NFKC normalization forms.
+**Learning:** Pure regex checks are insufficient for security-critical filters if attackers can use Unicode variety to hide malicious intent while maintaining visual similarity. NFKC normalization and manual homoglyph mapping are necessary pre-processing steps.
+**Prevention:** Apply `unicodedata.normalize('NFKC')` and translate common lookalikes to their Latin equivalents before performing safety-critical pattern matching.
+
+## 2026-03-15 - [Specificity Preservation in Redaction Pipelines]
+**Vulnerability:** Generic redaction patterns (e.g., matching any "key: value" pair) can overwrite more specific redaction labels (e.g., `[REDACTED_AWS_KEY]`), leading to a loss of diagnostic context in logs or UI.
+**Learning:** When multiple redaction regexes are applied in sequence, broader patterns can consume already-redacted strings if they aren't carefully constrained.
+**Prevention:** Use negative lookaheads (e.g., `(?!\[REDACTED)`) in broader, generic redaction patterns to prevent them from matching and over-writing strings that have already been masked by more specific, higher-priority patterns.
