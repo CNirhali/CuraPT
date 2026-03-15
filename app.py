@@ -3,6 +3,7 @@ import os
 import re
 import logging
 import time
+import unicodedata
 from datetime import datetime
 from dotenv import load_dotenv
 from mistralai.client import MistralClient
@@ -12,14 +13,17 @@ from mistralai.models.chat_completion import ChatMessage
 load_dotenv()
 
 # Pre-compiled regex for sensitive data sanitization (Defense-in-depth against secret leakage)
-# Includes Mistral keys, generic password/token patterns, and Bearer tokens
+# Includes Mistral keys, AWS keys (AKIA/ASIA), generic password/token patterns, and Bearer tokens
 SANITIZATION_PATTERNS = [
+    (re.compile(r'\b(AKIA|ASIA)[0-9A-Z]{16}\b'), '[REDACTED_AWS_KEY]'),
     (re.compile(r'\bsk-[a-zA-Z0-9]+\b'), '[REDACTED_API_KEY]'),
+    (re.compile(r'(?i)Bearer\s+[a-zA-Z0-9._\-\/+=]+'), 'Bearer [REDACTED]'),
     # Enhanced pattern to handle quoted secrets and preserve original separators
-    (re.compile(r'(?i)\b(password|passwd|secret|token|key|api_key)(\s*[:=]\s*)(?:"[^"]*"|\'[^\']*\'|[^\s,;]+)'), r'\1\2[REDACTED]'),
-    (re.compile(r'(?i)Bearer\s+[a-zA-Z0-9._\-\/+=]+'), 'Bearer [REDACTED]')
+    # Use negative lookahead to avoid re-redacting already masked values
+    (re.compile(r'(?i)\b(password|passwd|secret|token|key|api_key)(\s*[:=]\s*)(?!\[REDACTED)(?:"[^"]*"|\'[^\']*\'|[^\s,;]+)'), r'\1\2[REDACTED]')
 ]
 # Optimization: Substring markers to trigger expensive regex execution
+SENSITIVE_MARKERS = ["sk-", "akia", "asia", "pass", "secret", "token", "key", "bearer"]
 # Refinement: replaced 'pass' with 'password'/'passwd' to avoid false positives on 'compassion'
 SENSITIVE_MARKERS = ["sk-", "password", "passwd", "secret", "token", "key", "bearer"]
 
@@ -148,13 +152,37 @@ CRISIS_PATTERN = re.compile(r'\b(?:' + r'|'.join(map(re.escape, [k.lower() for k
 # Shortest crisis keywords like "suicide" or "kill me" are 7 characters long
 MIN_CRISIS_KEYWORD_LEN = 7
 
+# Common Latin-lookalike homoglyphs (e.g., Cyrillic, Greek) for normalization
+_HOMOGLYPH_MAP = str.maketrans(
+    'аеіорсхуіј',  # Lookalikes
+    'aeiopcxyij'   # Latin equivalents
+)
+
 def detect_crisis(message):
-    """Detect if the message indicates a crisis situation using regex."""
+    """
+    Detect if the message indicates a crisis situation using regex.
+    Includes normalization for homoglyphs and NFKC for robustness against obfuscation.
+    """
     # Optimization: return False immediately for very short, safe inputs to avoid string processing
     if len(message) < MIN_CRISIS_KEYWORD_LEN:
         return False
-    # Optimization: manual lowercase search is faster than re.IGNORECASE for many alternations
-    return bool(CRISIS_PATTERN.search(message.lower()))
+
+    # Primary check: fast and standard
+    msg_lower = message.lower()
+    if CRISIS_PATTERN.search(msg_lower):
+        return True
+
+    # Secondary check: Defense-in-depth against homoglyph obfuscation
+    # Only perform if message contains non-ASCII characters to save performance
+    if not message.isascii():
+        # Normalize NFKC (handles some lookalikes and combined characters)
+        normalized = unicodedata.normalize('NFKC', msg_lower)
+        # Apply manual homoglyph mapping for common bypasses
+        normalized = normalized.translate(_HOMOGLYPH_MAP)
+        if CRISIS_PATTERN.search(normalized):
+            return True
+
+    return False
 
 def get_crisis_response():
     """Return emergency resources and crisis response."""
