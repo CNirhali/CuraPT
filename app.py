@@ -268,12 +268,13 @@ def main():
         st.toast(f"Switched to {selected_avatar}", icon=AVATAR_ICONS[selected_avatar])
 
     st.sidebar.write(AVATAR_DESCRIPTIONS[selected_avatar])
-    st.sidebar.caption("🟢 Ready to listen")
+    st.sidebar.caption(f"🟢 {selected_avatar} is here for you")
 
     st.sidebar.markdown("---")
 
     # Manage Conversation Popover
     with st.sidebar.popover("⚙️ Manage Conversation", use_container_width=True):
+        msg_count = len(st.session_state.messages)
         st.write("Settings for your current chat session.")
 
         # Export History
@@ -292,7 +293,7 @@ def main():
             chat_text = sanitize_error("\n".join(export_parts) + "\n")
 
             st.download_button(
-                label="📥 Export Conversation",
+                label=f"📥 Export Conversation ({msg_count} message{'s' if msg_count != 1 else ''})",
                 data=chat_text,
                 file_name=f"mental_health_bot_chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
                 mime="text/plain",
@@ -307,7 +308,7 @@ def main():
         # Clear Chat History with confirmation
         st.write("⚠️ **Destructive Actions**")
         confirm_clear = st.checkbox("I'm ready for a fresh start", help="Check this to enable the clear button")
-        if st.button("🗑️ Clear Chat History",
+        if st.button(f"🗑️ Clear Chat History ({msg_count} message{'s' if msg_count != 1 else ''})",
                      help="Delete all messages and start a new conversation",
                      use_container_width=True,
                      disabled=not confirm_clear,
@@ -329,15 +330,15 @@ def main():
         # Optimization: use pre-calculated avatar icon and combine write calls to reduce UI traffic
         with st.chat_message("assistant", avatar=AVATAR_ICONS[selected_avatar]):
             greeting = get_time_based_greeting()
-            st.write(f"{greeting}! I'm your **{selected_avatar}**. How can I support you today?\n\n"
-                     "Click on a suggestion below or type your own message to start:")
+            st.write(f"{greeting}! I'm your **{selected_avatar}**. How can I support you today?")
+            st.caption("Try one of these to get started:")
 
-        suggestions = AVATAR_SUGGESTIONS[selected_avatar]
-        cols = st.columns(len(suggestions))
-        processed_suggestion = None
-        for idx, suggestion in enumerate(suggestions):
-            if cols[idx].button(suggestion, use_container_width=True, help=f"Ask {selected_avatar}: '{suggestion}'"):
-                processed_suggestion = suggestion
+            suggestions = AVATAR_SUGGESTIONS[selected_avatar]
+            cols = st.columns(len(suggestions))
+            processed_suggestion = None
+            for idx, suggestion in enumerate(suggestions):
+                if cols[idx].button(suggestion, use_container_width=True, help=f"Ask {selected_avatar}: '{suggestion}'"):
+                    processed_suggestion = suggestion
 
         if processed_suggestion:
             prompt = processed_suggestion
