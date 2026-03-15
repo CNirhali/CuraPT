@@ -20,7 +20,8 @@ SANITIZATION_PATTERNS = [
     (re.compile(r'(?i)Bearer\s+[a-zA-Z0-9._\-\/+=]+'), 'Bearer [REDACTED]')
 ]
 # Optimization: Substring markers to trigger expensive regex execution
-SENSITIVE_MARKERS = ["sk-", "pass", "secret", "token", "key", "bearer"]
+# Refinement: replaced 'pass' with 'password'/'passwd' to avoid false positives on 'compassion'
+SENSITIVE_MARKERS = ["sk-", "password", "passwd", "secret", "token", "key", "bearer"]
 
 def sanitize_error(message):
     """
@@ -278,22 +279,27 @@ def main():
 
         # Export History
         if st.session_state.messages:
-            # Optimization: Use list join for O(N) performance instead of iterative string concatenation
-            export_parts = [
-                f"Mental Health Ease Bot - {st.session_state.selected_avatar} Session",
-                f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-                "-" * 40 + "\n"
-            ]
-            export_parts.extend(
-                f"{st.session_state.selected_avatar if msg.role == 'assistant' else 'You'}: {msg.content}\n"
-                for msg in st.session_state.messages
-            )
-            # Apply defense-in-depth sanitization to the final export transcript
-            chat_text = sanitize_error("\n".join(export_parts) + "\n")
+            # Optimization: Cache the sanitized export transcript to avoid O(N) generation on every rerun
+            msg_count = len(st.session_state.messages)
+            cache_key = f"export_cache_{selected_avatar}_{msg_count}"
+
+            if "last_export" not in st.session_state or st.session_state.get("export_cache_key") != cache_key:
+                export_parts = [
+                    f"Mental Health Ease Bot - {selected_avatar} Session",
+                    f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                    "-" * 40 + "\n"
+                ]
+                export_parts.extend(
+                    f"{selected_avatar if msg.role == 'assistant' else 'You'}: {msg.content}\n"
+                    for msg in st.session_state.messages
+                )
+                # Apply defense-in-depth sanitization to the final export transcript
+                st.session_state.last_export = sanitize_error("\n".join(export_parts) + "\n")
+                st.session_state.export_cache_key = cache_key
 
             st.download_button(
                 label="📥 Export Conversation",
-                data=chat_text,
+                data=st.session_state.last_export,
                 file_name=f"mental_health_bot_chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
                 mime="text/plain",
                 help="Download a copy of your current conversation history.",
@@ -345,7 +351,8 @@ def main():
             prompt = None
     else:
         # Pre-calculate assistant icon once per rerun to avoid redundant lookups in the loop
-        assistant_icon = AVATAR_ICONS[st.session_state.selected_avatar]
+        # Optimization: use local selected_avatar variable
+        assistant_icon = AVATAR_ICONS[selected_avatar]
         for message in st.session_state.messages:
             avatar = assistant_icon if message.role == "assistant" else "👤"
             with st.chat_message(message.role, avatar=avatar):
@@ -354,8 +361,9 @@ def main():
 
     # Chat input is always visible unless a suggestion was just clicked
     if not prompt:
+        # Optimization: use local selected_avatar variable
         prompt = st.chat_input(
-            AVATAR_PLACEHOLDERS.get(st.session_state.selected_avatar, "How are you feeling today?"),
+            AVATAR_PLACEHOLDERS.get(selected_avatar, "How are you feeling today?"),
             max_chars=2000
         )
 
