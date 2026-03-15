@@ -3,6 +3,7 @@ import os
 import re
 import logging
 import time
+import unicodedata
 from datetime import datetime
 from dotenv import load_dotenv
 from mistralai.client import MistralClient
@@ -12,15 +13,19 @@ from mistralai.models.chat_completion import ChatMessage
 load_dotenv()
 
 # Pre-compiled regex for sensitive data sanitization (Defense-in-depth against secret leakage)
-# Includes Mistral keys, generic password/token patterns, and Bearer tokens
+# Includes Mistral keys, AWS keys (AKIA/ASIA), generic password/token patterns, and Bearer tokens
 SANITIZATION_PATTERNS = [
+    (re.compile(r'\b(AKIA|ASIA)[0-9A-Z]{16}\b'), '[REDACTED_AWS_KEY]'),
     (re.compile(r'\bsk-[a-zA-Z0-9]+\b'), '[REDACTED_API_KEY]'),
+    (re.compile(r'(?i)Bearer\s+[a-zA-Z0-9._\-\/+=]+'), 'Bearer [REDACTED]'),
     # Enhanced pattern to handle quoted secrets and preserve original separators
-    (re.compile(r'(?i)\b(password|passwd|secret|token|key|api_key)(\s*[:=]\s*)(?:"[^"]*"|\'[^\']*\'|[^\s,;]+)'), r'\1\2[REDACTED]'),
-    (re.compile(r'(?i)Bearer\s+[a-zA-Z0-9._\-\/+=]+'), 'Bearer [REDACTED]')
+    # Use negative lookahead to avoid re-redacting already masked values
+    (re.compile(r'(?i)\b(password|passwd|secret|token|key|api_key)(\s*[:=]\s*)(?!\[REDACTED)(?:"[^"]*"|\'[^\']*\'|[^\s,;]+)'), r'\1\2[REDACTED]')
 ]
 # Optimization: Substring markers to trigger expensive regex execution
-SENSITIVE_MARKERS = ["sk-", "pass", "secret", "token", "key", "bearer"]
+SENSITIVE_MARKERS = ["sk-", "akia", "asia", "pass", "secret", "token", "key", "bearer"]
+# Refinement: replaced 'pass' with 'password'/'passwd' to avoid false positives on 'compassion'
+SENSITIVE_MARKERS = ["sk-", "password", "passwd", "secret", "token", "key", "bearer"]
 
 def sanitize_error(message):
     """
@@ -147,13 +152,37 @@ CRISIS_PATTERN = re.compile(r'\b(?:' + r'|'.join(map(re.escape, [k.lower() for k
 # Shortest crisis keywords like "suicide" or "kill me" are 7 characters long
 MIN_CRISIS_KEYWORD_LEN = 7
 
+# Common Latin-lookalike homoglyphs (e.g., Cyrillic, Greek) for normalization
+_HOMOGLYPH_MAP = str.maketrans(
+    'аеіорсхуіј',  # Lookalikes
+    'aeiopcxyij'   # Latin equivalents
+)
+
 def detect_crisis(message):
-    """Detect if the message indicates a crisis situation using regex."""
+    """
+    Detect if the message indicates a crisis situation using regex.
+    Includes normalization for homoglyphs and NFKC for robustness against obfuscation.
+    """
     # Optimization: return False immediately for very short, safe inputs to avoid string processing
     if len(message) < MIN_CRISIS_KEYWORD_LEN:
         return False
-    # Optimization: manual lowercase search is faster than re.IGNORECASE for many alternations
-    return bool(CRISIS_PATTERN.search(message.lower()))
+
+    # Primary check: fast and standard
+    msg_lower = message.lower()
+    if CRISIS_PATTERN.search(msg_lower):
+        return True
+
+    # Secondary check: Defense-in-depth against homoglyph obfuscation
+    # Only perform if message contains non-ASCII characters to save performance
+    if not message.isascii():
+        # Normalize NFKC (handles some lookalikes and combined characters)
+        normalized = unicodedata.normalize('NFKC', msg_lower)
+        # Apply manual homoglyph mapping for common bypasses
+        normalized = normalized.translate(_HOMOGLYPH_MAP)
+        if CRISIS_PATTERN.search(normalized):
+            return True
+
+    return False
 
 def get_crisis_response():
     """Return emergency resources and crisis response."""
@@ -275,31 +304,41 @@ def main():
 
     st.sidebar.write(AVATAR_DESCRIPTIONS[selected_avatar])
     st.sidebar.caption(f"🟢 {selected_avatar} is ready to listen")
+    st.sidebar.caption(f"🟢 {selected_avatar} is here for you")
 
     st.sidebar.markdown("---")
 
     # Manage Conversation Popover
     with st.sidebar.popover("⚙️ Manage Conversation", use_container_width=True):
+        msg_count = len(st.session_state.messages)
         st.write("Settings for your current chat session.")
 
         # Export History
         if st.session_state.messages:
-            # Optimization: Use list join for O(N) performance instead of iterative string concatenation
-            export_parts = [
-                f"Mental Health Ease Bot - {st.session_state.selected_avatar} Session",
-                f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-                "-" * 40 + "\n"
-            ]
-            export_parts.extend(
-                f"{st.session_state.selected_avatar if msg.role == 'assistant' else 'You'}: {msg.content}\n"
-                for msg in st.session_state.messages
-            )
-            # Apply defense-in-depth sanitization to the final export transcript
-            chat_text = sanitize_error("\n".join(export_parts) + "\n")
+            # Optimization: Cache the sanitized export transcript to avoid O(N) generation on every rerun
+            msg_count = len(st.session_state.messages)
+            cache_key = f"export_cache_{selected_avatar}_{msg_count}"
+
+            if "last_export" not in st.session_state or st.session_state.get("export_cache_key") != cache_key:
+                export_parts = [
+                    f"Mental Health Ease Bot - {selected_avatar} Session",
+                    f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                    "-" * 40 + "\n"
+                ]
+                export_parts.extend(
+                    f"{selected_avatar if msg.role == 'assistant' else 'You'}: {msg.content}\n"
+                    for msg in st.session_state.messages
+                )
+                # Apply defense-in-depth sanitization to the final export transcript
+                st.session_state.last_export = sanitize_error("\n".join(export_parts) + "\n")
+                st.session_state.export_cache_key = cache_key
 
             st.download_button(
                 label=f"📥 Export Conversation ({len(st.session_state.messages)} messages)",
+                label=f"📥 Export Conversation ({msg_count} message{'s' if msg_count != 1 else ''})",
                 data=chat_text,
+                label="📥 Export Conversation",
+                data=st.session_state.last_export,
                 file_name=f"mental_health_bot_chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
                 mime="text/plain",
                 help="Download a copy of your current conversation history.",
@@ -313,7 +352,7 @@ def main():
         # Clear Chat History with confirmation
         st.write("⚠️ **Destructive Actions**")
         confirm_clear = st.checkbox("I'm ready for a fresh start", help="Check this to enable the clear button")
-        if st.button("🗑️ Clear Chat History",
+        if st.button(f"🗑️ Clear Chat History ({msg_count} message{'s' if msg_count != 1 else ''})",
                      help="Delete all messages and start a new conversation",
                      use_container_width=True,
                      disabled=not confirm_clear,
@@ -347,11 +386,39 @@ def main():
                 processed_suggestion = suggestion
 
     prompt = processed_suggestion if processed_suggestion else None
+    if not st.session_state.messages:
+        # Optimization: use pre-calculated avatar icon and combine write calls to reduce UI traffic
+        with st.chat_message("assistant", avatar=AVATAR_ICONS[selected_avatar]):
+            greeting = get_time_based_greeting()
+            st.write(f"{greeting}! I'm your **{selected_avatar}**. How can I support you today?")
+            st.caption("Try one of these to get started:")
+
+            suggestions = AVATAR_SUGGESTIONS[selected_avatar]
+            cols = st.columns(len(suggestions))
+            processed_suggestion = None
+            for idx, suggestion in enumerate(suggestions):
+                if cols[idx].button(suggestion, use_container_width=True, help=f"Ask {selected_avatar}: '{suggestion}'"):
+                    processed_suggestion = suggestion
+
+        if processed_suggestion:
+            prompt = processed_suggestion
+        else:
+            prompt = None
+    else:
+        # Pre-calculate assistant icon once per rerun to avoid redundant lookups in the loop
+        # Optimization: use local selected_avatar variable
+        assistant_icon = AVATAR_ICONS[selected_avatar]
+        for message in st.session_state.messages:
+            avatar = assistant_icon if message.role == "assistant" else "👤"
+            with st.chat_message(message.role, avatar=avatar):
+                st.write(message.content)
+        prompt = None
 
     # Chat input is always visible unless a suggestion was just clicked
     if not prompt:
+        # Optimization: use local selected_avatar variable
         prompt = st.chat_input(
-            AVATAR_PLACEHOLDERS.get(st.session_state.selected_avatar, "How are you feeling today?"),
+            AVATAR_PLACEHOLDERS.get(selected_avatar, "How are you feeling today?"),
             max_chars=2000
         )
 
