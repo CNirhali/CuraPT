@@ -39,6 +39,11 @@
 **Learning:** Simple key-value regex patterns (e.g., `key\s*[:=]\s*[^\s,;]+`) fail to catch secrets that contain spaces (if quoted) or preserve the original formatting, which can lead to information leakage or inconsistent UI/logs.
 **Prevention:** Use capture groups to preserve original separators and handle multiple quoting styles (single and double quotes) in sanitization regexes to ensure robust secret masking across various input formats.
 
+## 2026-03-16 - [Sanitization Bypass via Fast-Path Desynchronization]
+**Vulnerability:** Incomplete redaction of AWS keys (AKIA/ASIA) despite existing regex patterns.
+**Learning:** High-speed "guard" checks (like the `SENSITIVE_MARKERS` substring check) must be perfectly synchronized with the underlying regular expression suite. If a marker is missing from the fast-path list, the expensive but secure regex will never execute for that pattern, creating a silent security failure.
+**Prevention:** Always maintain a one-to-one mapping between the sets of identifiers in fast-path optimizations and the security-critical patterns they protect.
+
 ## 2026-03-15 - [Safety Bypass via Homoglyph Obfuscation]
 **Vulnerability:** Crisis detection filters using simple regex or keyword matching can be bypassed using homoglyphs (lookalike characters from different alphabets, e.g., Cyrillic 'і' for Latin 'i') or NFKC normalization forms.
 **Learning:** Pure regex checks are insufficient for security-critical filters if attackers can use Unicode variety to hide malicious intent while maintaining visual similarity. NFKC normalization and manual homoglyph mapping are necessary pre-processing steps.
