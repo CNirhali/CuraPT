@@ -23,9 +23,9 @@ SANITIZATION_PATTERNS = [
     (re.compile(r'(?i)\b(password|passwd|secret|token|key|api_key)(\s*[:=]\s*)(?!\[REDACTED)(?:"[^"]*"|\'[^\']*\'|[^\s,;]+)'), r'\1\2[REDACTED]')
 ]
 # Optimization: Substring markers to trigger expensive regex execution
-SENSITIVE_MARKERS = ["sk-", "akia", "asia", "pass", "secret", "token", "key", "bearer"]
 # Refinement: replaced 'pass' with 'password'/'passwd' to avoid false positives on 'compassion'
-SENSITIVE_MARKERS = ["sk-", "password", "passwd", "secret", "token", "key", "bearer"]
+# Included 'akia' and 'asia' for AWS key detection
+SENSITIVE_MARKERS = ["sk-", "akia", "asia", "password", "passwd", "secret", "token", "key", "bearer"]
 
 def sanitize_error(message):
     """
@@ -334,10 +334,7 @@ def main():
                 st.session_state.export_cache_key = cache_key
 
             st.download_button(
-                label=f"📥 Export Conversation ({len(st.session_state.messages)} messages)",
                 label=f"📥 Export Conversation ({msg_count} message{'s' if msg_count != 1 else ''})",
-                data=chat_text,
-                label="📥 Export Conversation",
                 data=st.session_state.last_export,
                 file_name=f"mental_health_bot_chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
                 mime="text/plain",
@@ -386,33 +383,6 @@ def main():
                 processed_suggestion = suggestion
 
     prompt = processed_suggestion if processed_suggestion else None
-    if not st.session_state.messages:
-        # Optimization: use pre-calculated avatar icon and combine write calls to reduce UI traffic
-        with st.chat_message("assistant", avatar=AVATAR_ICONS[selected_avatar]):
-            greeting = get_time_based_greeting()
-            st.write(f"{greeting}! I'm your **{selected_avatar}**. How can I support you today?")
-            st.caption("Try one of these to get started:")
-
-            suggestions = AVATAR_SUGGESTIONS[selected_avatar]
-            cols = st.columns(len(suggestions))
-            processed_suggestion = None
-            for idx, suggestion in enumerate(suggestions):
-                if cols[idx].button(suggestion, use_container_width=True, help=f"Ask {selected_avatar}: '{suggestion}'"):
-                    processed_suggestion = suggestion
-
-        if processed_suggestion:
-            prompt = processed_suggestion
-        else:
-            prompt = None
-    else:
-        # Pre-calculate assistant icon once per rerun to avoid redundant lookups in the loop
-        # Optimization: use local selected_avatar variable
-        assistant_icon = AVATAR_ICONS[selected_avatar]
-        for message in st.session_state.messages:
-            avatar = assistant_icon if message.role == "assistant" else "👤"
-            with st.chat_message(message.role, avatar=avatar):
-                st.write(message.content)
-        prompt = None
 
     # Chat input is always visible unless a suggestion was just clicked
     if not prompt:
