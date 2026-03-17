@@ -136,14 +136,6 @@ AVATAR_SUGGESTIONS = {
     name: data["suggestions"]
     for name, data in AVATARS.items()
 }
-AVATAR_READY_MSGS = {
-    name: f"🟢 {name} is ready to listen"
-    for name in AVATARS.keys()
-}
-AVATAR_HERE_MSGS = {
-    name: f"🟢 {name} is here for you"
-    for name in AVATARS.keys()
-}
 
 # Crisis detection keywords and pre-compiled regex for performance
 CRISIS_KEYWORDS = [
@@ -320,12 +312,10 @@ def main():
         welcome_msg = f"{greeting}! I'm your **{selected_avatar}**. How can I support you today?"
         st.session_state.messages.append(ChatMessage(role="assistant", content=welcome_msg))
 
-    st.sidebar.write(AVATAR_DESCRIPTIONS[selected_avatar])
-    st.sidebar.caption(AVATAR_READY_MSGS[selected_avatar])
-    st.sidebar.caption(AVATAR_HERE_MSGS[selected_avatar])
-    st.sidebar.caption(f"🟢 {selected_avatar} is ready to listen")
-
-    st.sidebar.markdown("---")
+    with st.sidebar:
+        st.write(AVATAR_DESCRIPTIONS[selected_avatar])
+        st.caption(f"🟢 {selected_avatar} is ready to listen")
+        st.markdown("---")
 
     # Manage Conversation Popover
     with st.sidebar.popover("⚙️ Manage Conversation", use_container_width=True):
