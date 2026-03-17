@@ -15,17 +15,17 @@ load_dotenv()
 # Pre-compiled regex for sensitive data sanitization (Defense-in-depth against secret leakage)
 # Includes Mistral keys, AWS keys (AKIA/ASIA), generic password/token patterns, and Bearer tokens
 SANITIZATION_PATTERNS = [
-    (re.compile(r'\b(AKIA|ASIA)[0-9A-Z]{16}\b'), '[REDACTED_AWS_KEY]'),
+    (re.compile(r'\b(AKIA|ASIA)[0-9A-Z]{12,124}\b'), '[REDACTED_AWS_KEY]'),
     (re.compile(r'\bsk-[a-zA-Z0-9]+\b'), '[REDACTED_API_KEY]'),
     (re.compile(r'(?i)Bearer\s+[a-zA-Z0-9._\-\/+=]+'), 'Bearer [REDACTED]'),
     # Enhanced pattern to handle quoted secrets and preserve original separators
     # Use negative lookahead to avoid re-redacting already masked values
-    (re.compile(r'(?i)\b(password|passwd|secret|token|key|api_key)(\s*[:=]\s*)(?!\[REDACTED)(?:"[^"]*"|\'[^\']*\'|[^\s,;]+)'), r'\1\2[REDACTED]')
+    (re.compile(r'(?i)\b(password|passwd|secret|token|key|api_key|aws_secret_access_key)(\s*(?:[:=]|is)\s*)(?!\[REDACTED)(?:"[^"]*"|\'[^\']*\'|[^\s,;]+)'), r'\1\2[REDACTED]')
 ]
 # Optimization: Substring markers to trigger expensive regex execution
 # Refinement: replaced 'pass' with 'password'/'passwd' to avoid false positives on 'compassion'
-# Included 'akia' and 'asia' for AWS key detection
-SENSITIVE_MARKERS = ["sk-", "akia", "asia", "password", "passwd", "secret", "token", "key", "bearer"]
+# Included 'akia', 'asia', and 'aws_secret_access_key' for detection
+SENSITIVE_MARKERS = ["sk-", "akia", "asia", "password", "passwd", "secret", "token", "key", "bearer", "aws_secret_access_key"]
 
 def sanitize_error(message):
     """
