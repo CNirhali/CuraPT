@@ -17,3 +17,7 @@
 ## 2025-05-15 - [Action Context & Confirmation]
 **Learning:** Providing dynamic metadata (like message counts) on management buttons gives users immediate clarity on the scale of their actions (exporting or deleting). This "informed consent" model reduces user anxiety when interacting with data management tools.
 **Action:** Always include relevant quantity markers (e.g., item counts) on buttons that perform batch operations or data-heavy tasks.
+
+## 2025-05-15 - [Visual Persona Reinforcement]
+**Learning:** In a multi-persona chat interface, prepending persona-aligned emojis to interactive elements like suggestion buttons and status messages significantly reduces cognitive load and strengthens the user's connection with the selected avatar.
+**Action:** Consistently use persona-specific icons within affordances (buttons, status labels) to provide constant visual cues of the active conversational context.
