@@ -323,6 +323,7 @@ def main():
     st.sidebar.write(AVATAR_DESCRIPTIONS[selected_avatar])
     st.sidebar.caption(AVATAR_READY_MSGS[selected_avatar])
     st.sidebar.caption(AVATAR_HERE_MSGS[selected_avatar])
+    st.sidebar.caption(f"🟢 {selected_avatar} is ready to listen")
 
     st.sidebar.markdown("---")
 
@@ -386,19 +387,19 @@ def main():
 
     # Display chat messages from history
     assistant_icon = AVATAR_ICONS[st.session_state.selected_avatar]
-    for message in st.session_state.messages:
+    processed_suggestion = None
+    for idx, message in enumerate(st.session_state.messages):
         avatar = assistant_icon if message.role == "assistant" else "👤"
         with st.chat_message(message.role, avatar=avatar):
             st.write(message.content)
-
-    processed_suggestion = None
-    if len(st.session_state.messages) == 1:
-        st.caption("Click on a suggestion below or type your own message to start:")
-        suggestions = AVATAR_SUGGESTIONS[selected_avatar]
-        cols = st.columns(len(suggestions))
-        for idx, suggestion in enumerate(suggestions):
-            if cols[idx].button(suggestion, use_container_width=True, help=f"Ask {selected_avatar}: '{suggestion}'"):
-                processed_suggestion = suggestion
+            # Integrate suggestions into the initial greeting bubble for better visual hierarchy
+            if idx == 0 and len(st.session_state.messages) == 1:
+                st.caption("Click on a suggestion below or type your own message to start:")
+                suggestions = AVATAR_SUGGESTIONS[selected_avatar]
+                cols = st.columns(len(suggestions))
+                for s_idx, suggestion in enumerate(suggestions):
+                    if cols[s_idx].button(suggestion, use_container_width=True, help=f"Ask {selected_avatar}: '{suggestion}'"):
+                        processed_suggestion = suggestion
 
     prompt = processed_suggestion if processed_suggestion else None
 
