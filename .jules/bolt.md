@@ -49,3 +49,7 @@
 ## 2026-03-18 - [Fast-path ASCII Guard for Safety Logic]
 **Learning:** When optimizing safety-critical functions like `detect_crisis` that handle homoglyph normalization, a broad substring fast-path (e.g., `any(k in msg_lower for k in KEYWORDS)`) can accidentally bypass essential security checks for non-ASCII obfuscation if not properly guarded. Implementing an `isascii()` check ensures that simple, common inputs benefit from the O(N) speedup (~2.3x faster) while complex or malicious inputs still undergo full normalization and regex validation.
 **Action:** Always guard substring-based fast-paths with appropriate character-set checks (like `isascii()`) if the slow-path involves normalization or security-sensitive transformations.
+
+## 2026-03-20 - [Local Variable Access and In-place List Truncation]
+**Learning:** Accessing `st.session_state` frequently in a large `main()` function incurs significant overhead due to Streamlit's proxying mechanism. Using local variable references (`state = st.session_state`, `messages = state.messages`) provides a massive performance boost. Furthermore, using `del messages[:-50]` for history capping is superior to slicing (`messages = messages[-50:]`) because it performs the truncation in-place, preserving the object identity and ensuring all local references to the list remain synchronized without requiring manual re-assignment.
+**Action:** Always localize session state access in `main()` and prefer in-place list operations to maintain reference integrity across the application.

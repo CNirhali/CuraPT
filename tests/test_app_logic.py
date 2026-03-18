@@ -270,3 +270,31 @@ def test_avatars_config_completeness():
     for name, data in AVATARS.items():
         assert "chat_placeholder" in data, f"Avatar {name} is missing chat_placeholder"
         assert len(data["chat_placeholder"]) > 0, f"Avatar {name} has an empty chat_placeholder"
+
+def test_handle_user_input_history_capping_in_place(mocker):
+    # Mock streamlit session state
+    class MockState:
+        def __init__(self):
+            self.messages = [ChatMessage(role="user", content=f"msg {i}") for i in range(50)]
+            self.last_message_time = 0
+        def get(self, k, d):
+            return getattr(self, k, d)
+        def __getitem__(self, k):
+            return getattr(self, k)
+
+    mock_state = MockState()
+    mocker.patch.object(st, "session_state", mock_state)
+
+    # Initial state: 50 messages
+    assert len(st.session_state.messages) == 50
+    original_messages_list = st.session_state.messages
+
+    # Add 51st message
+    success, is_crisis, crisis_text, sanitized_prompt = handle_user_input("New message")
+
+    assert success == True
+    assert len(st.session_state.messages) == 50
+    # Verify in-place deletion (object identity preserved)
+    assert st.session_state.messages is original_messages_list
+    assert st.session_state.messages[-1].content == "New message"
+    assert st.session_state.messages[0].content == "msg 1"
