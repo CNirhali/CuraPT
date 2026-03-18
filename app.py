@@ -303,9 +303,8 @@ def main():
         st.session_state.last_message_time = 0
 
     # Avatar selection
-    st.sidebar.title("Choose Your Companion")
     selected_avatar = st.sidebar.selectbox(
-        "Select an avatar",
+        "Choose Your Companion",
         AVATAR_OPTIONS,
         index=AVATAR_OPTIONS.index(st.session_state.selected_avatar),
         format_func=AVATAR_DISPLAY_NAMES.get,
@@ -397,20 +396,20 @@ def main():
             if idx == 0 and len(st.session_state.messages) == 1:
                 st.caption("✨ Click on a suggestion below or type your own message to start:")
                 suggestions = AVATAR_SUGGESTIONS[selected_avatar]
-                cols = st.columns(len(suggestions))
-                for s_idx, suggestion in enumerate(suggestions):
-                    if cols[s_idx].button(suggestion, use_container_width=True, help=f"Ask {selected_avatar}: '{suggestion}'"):
+                for suggestion in suggestions:
+                    if st.button(suggestion, use_container_width=True, help=f"Ask {selected_avatar}: '{suggestion}'"):
                         processed_suggestion = suggestion
 
     prompt = processed_suggestion if processed_suggestion else None
 
-    # Chat input is always visible unless a suggestion was just clicked
-    if not prompt:
-        # Optimization: use local selected_avatar variable
-        prompt = st.chat_input(
-            AVATAR_PLACEHOLDERS.get(selected_avatar, "How are you feeling today?"),
-            max_chars=2000
-        )
+    # Chat input is always visible at the bottom of the page
+    # Optimization: use local selected_avatar variable
+    user_input = st.chat_input(
+        AVATAR_PLACEHOLDERS.get(selected_avatar, "How are you feeling today?"),
+        max_chars=2000
+    )
+    if user_input:
+        prompt = user_input
 
     # Message processing
     if prompt:
@@ -422,7 +421,7 @@ def main():
 
             if is_crisis:
                 with st.chat_message("assistant", avatar=AVATAR_ICONS[selected_avatar]):
-                    st.write(crisis_text)
+                    st.warning(crisis_text)
             else:
                 # Generate and stream bot response immediately
                 messages = [SYSTEM_MESSAGES[selected_avatar]] + st.session_state.messages[-10:]
