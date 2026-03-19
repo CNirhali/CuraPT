@@ -34,7 +34,8 @@ SANITIZATION_PATTERNS = [
 # Optimization: Substring markers to trigger expensive regex execution
 # Refinement: replaced 'pass' with 'password'/'passwd' to avoid false positives on 'compassion'
 # Included 'akia', 'asia', and 'aws_secret_access_key' for detection
-SENSITIVE_MARKERS = ["sk-", "akia", "asia", "password", "passwd", "secret", "token", "key", "bearer", "aws_secret_access_key"]
+# Reordered to place highly frequent markers at the beginning for faster short-circuiting in any()
+SENSITIVE_MARKERS = ["password", "token", "sk-", "secret", "key", "passwd", "akia", "asia", "bearer", "aws_secret_access_key"]
 
 def sanitize_error(message):
     """
@@ -51,6 +52,8 @@ def sanitize_error(message):
         return message
 
     sanitized = message
+    # In CPython, re.sub already handles the 'no match' case efficiently by
+    # returning the original string object without performing a substitution.
     for pattern, replacement in SANITIZATION_PATTERNS:
         sanitized = pattern.sub(replacement, sanitized)
 
@@ -159,13 +162,14 @@ AVATAR_HERE_MSGS = {
 }
 
 # Crisis detection keywords and pre-compiled regex for performance
+# Sorted by length (ascending) to improve short-circuiting performance of the any() check
 CRISIS_KEYWORDS = [
-    "suicide", "kill myself", "end it all", "ending it all", "no reason to live",
-    "want to die", "better off dead", "hurt myself", "take my life", "self-harm",
-    "don't want to be here anymore", "slit my wrists", "overdose",
-    "hopeless", "can't go on", "end my life", "suicidal", "kill me",
-    "jumping off", "jump off", "cut myself", "hang myself", "poison myself",
-    "kill yourself", "ending your life", "hurt yourself"
+    "kill me", "suicide", "hopeless", "jump off", "overdose", "suicidal",
+    "can't go on", "cut myself", "end it all", "end my life", "hurt myself",
+    "take my life", "want to die", "hang myself", "hurt yourself", "kill myself",
+    "self-harm", "better off dead", "ending it all", "jumping off", "kill yourself",
+    "slit my wrists", "ending your life", "poison myself", "no reason to live",
+    "don't want to be here anymore"
 ]
 # Pre-calculate lowercase keywords for O(N) fast-path check
 CRISIS_KEYWORDS_LOWER = [k.lower() for k in CRISIS_KEYWORDS]
@@ -449,6 +453,8 @@ def main():
                 with st.chat_message("assistant", avatar=AVATAR_ICONS[selected_avatar]):
                     response_placeholder = st.empty()
                     response_placeholder.markdown(f"💬 *{AVATAR_THINKING_MSGS[selected_avatar]}*")
+                    # In modern CPython (3.6+), += string concatenation is optimized for
+                    # in-place growth when no other references to the string exist.
                     full_response = ""
                     # Use token buffering to reduce UI update frequency and websocket traffic
                     chunk_count = 0
@@ -460,7 +466,8 @@ def main():
                         chunk_count += 1
 
                         # Incremental crisis check for immediate intervention (Defense-in-depth)
-                        # Optimization: Check only the last 300 chars to avoid O(N^2) complexity as response grows
+                        # Optimization: Check only the last 300 chars to avoid O(N^2) complexity as response grows.
+                        # Using character-based windowing ensures consistent safety regardless of chunk sizes.
                         if detect_crisis(full_response[-300:]):
                             logger.warning("Safety: Crisis detected in AI response during streaming. Aborting.")
                             full_response = CRISIS_FALLBACK
