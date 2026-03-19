@@ -120,6 +120,7 @@ AVATARS = {
 
 # Pre-calculate avatar options, system messages, and icons for performance
 AVATAR_OPTIONS = list(AVATARS.keys())
+AVATAR_INDEX = {name: i for i, name in enumerate(AVATAR_OPTIONS)}
 SYSTEM_MESSAGES = {
     name: ChatMessage(role="system", content=data["system_prompt"])
     for name, data in AVATARS.items()
@@ -278,8 +279,9 @@ def handle_user_input(prompt):
     st.session_state.messages.append(ChatMessage(role="user", content=sanitized_prompt))
 
     # History capping for performance and security
+    # Optimization: Use in-place deletion to maintain list object identity and reduce memory churn
     if len(st.session_state.messages) > 50:
-        st.session_state.messages = st.session_state.messages[-50:]
+        del st.session_state.messages[:-50]
 
     is_crisis = detect_crisis(sanitized_prompt)
     crisis_text = None
@@ -304,33 +306,42 @@ def main():
     st.title("Mental Health Ease Bot")
     st.subheader("Your AI companion for mental well-being and personal growth", divider="blue")
 
+    # Optimization: Use local variables for session state to bypass proxy overhead
+    state = st.session_state
+
     # Initialize session state
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-    if "selected_avatar" not in st.session_state:
-        st.session_state.selected_avatar = "Therapist"
-    if "last_message_time" not in st.session_state:
-        st.session_state.last_message_time = 0
+    if "messages" not in state:
+        state.messages = []
+    if "selected_avatar" not in state:
+        state.selected_avatar = "Therapist"
+    if "last_message_time" not in state:
+        state.last_message_time = 0
+
+    # Local references for performance
+    messages = state.messages
+    current_selected = state.selected_avatar
 
     # Avatar selection
     selected_avatar = st.sidebar.selectbox(
         "Choose Your Companion",
         AVATAR_OPTIONS,
-        index=AVATAR_OPTIONS.index(st.session_state.selected_avatar),
+        index=AVATAR_INDEX[current_selected],
         format_func=AVATAR_DISPLAY_NAMES.get,
         help="Switching your companion will reset the current conversation. Consider exporting your chat first if you'd like to save it."
     )
     
-    if selected_avatar != st.session_state.selected_avatar:
-        st.session_state.selected_avatar = selected_avatar
-        st.session_state.messages = []
+    if selected_avatar != current_selected:
+        state.selected_avatar = selected_avatar
+        state.messages = []
+        # Update local references after state change
+        messages = state.messages
         st.toast(f"Switched to {selected_avatar}", icon=AVATAR_ICONS[selected_avatar])
 
     # Ensure the conversation starts with a persona-specific welcome message
-    if not st.session_state.messages:
+    if not messages:
         greeting = get_time_based_greeting()
         welcome_msg = f"{greeting}! I'm your **{selected_avatar}**. How can I support you today?"
-        st.session_state.messages.append(ChatMessage(role="assistant", content=welcome_msg))
+        messages.append(ChatMessage(role="assistant", content=welcome_msg))
 
     with st.sidebar:
         st.write(AVATAR_DESCRIPTIONS[selected_avatar])
@@ -339,16 +350,15 @@ def main():
 
     # Manage Conversation Popover
     with st.sidebar.popover("⚙️ Manage Conversation", use_container_width=True):
-        msg_count = len(st.session_state.messages)
+        msg_count = len(messages)
         st.write("Settings for your current chat session.")
 
         # Export History
-        if st.session_state.messages:
+        if messages:
             # Optimization: Cache the sanitized export transcript to avoid O(N) generation on every rerun
-            msg_count = len(st.session_state.messages)
             cache_key = f"export_cache_{selected_avatar}_{msg_count}"
 
-            if "last_export" not in st.session_state or st.session_state.get("export_cache_key") != cache_key:
+            if "last_export" not in state or state.get("export_cache_key") != cache_key:
                 export_parts = [
                     f"Mental Health Ease Bot - {selected_avatar} Session",
                     f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
@@ -356,11 +366,11 @@ def main():
                 ]
                 export_parts.extend(
                     f"{selected_avatar if msg.role == 'assistant' else 'You'}: {msg.content}\n"
-                    for msg in st.session_state.messages
+                    for msg in messages
                 )
                 # Apply defense-in-depth sanitization to the final export transcript
-                st.session_state.last_export = sanitize_error("\n".join(export_parts) + "\n")
-                st.session_state.export_cache_key = cache_key
+                state.last_export = sanitize_error("\n".join(export_parts) + "\n")
+                state.export_cache_key = cache_key
 
             st.download_button(
                 label=f"📥 Export Conversation ({msg_count} message{'s' if msg_count != 1 else ''})",
@@ -383,7 +393,7 @@ def main():
                      use_container_width=True,
                      disabled=not confirm_clear,
                      type="secondary"):
-            st.session_state.messages = []
+            state.messages = []
             st.toast("Conversation cleared 🌱")
             st.rerun()
 
@@ -396,14 +406,14 @@ def main():
     st.sidebar.info("⚕️ This bot is **not a replacement** for professional care. If you're in distress, please use the emergency resources below.")
 
     # Display chat messages from history
-    assistant_icon = AVATAR_ICONS[st.session_state.selected_avatar]
+    assistant_icon = AVATAR_ICONS[selected_avatar]
     processed_suggestion = None
-    for idx, message in enumerate(st.session_state.messages):
+    for idx, message in enumerate(messages):
         avatar = assistant_icon if message.role == "assistant" else "👤"
         with st.chat_message(message.role, avatar=avatar):
             st.write(message.content)
             # Integrate suggestions into the initial greeting bubble for better visual hierarchy
-            if idx == 0 and len(st.session_state.messages) == 1:
+            if idx == 0 and msg_count == 1:
                 st.caption("✨ Click on a suggestion below or type your own message to start:")
                 suggestions = AVATAR_SUGGESTIONS[selected_avatar]
                 for suggestion in suggestions:
@@ -434,7 +444,7 @@ def main():
                     st.warning(crisis_text)
             else:
                 # Generate and stream bot response immediately
-                messages = [SYSTEM_MESSAGES[selected_avatar]] + st.session_state.messages[-10:]
+                chat_context = [SYSTEM_MESSAGES[selected_avatar]] + messages[-10:]
 
                 with st.chat_message("assistant", avatar=AVATAR_ICONS[selected_avatar]):
                     response_placeholder = st.empty()
@@ -445,7 +455,7 @@ def main():
                     aborted = False
                     CRISIS_FALLBACK = "I'm sorry, I cannot fulfill this request as it may contain unsafe content. If you're in distress, please use the emergency resources in the sidebar."
 
-                    for response_chunk in get_bot_response(messages):
+                    for response_chunk in get_bot_response(chat_context):
                         full_response += response_chunk
                         chunk_count += 1
 
@@ -471,7 +481,7 @@ def main():
                         final_response = full_response
 
                     response_placeholder.markdown(final_response)
-                    st.session_state.messages.append(ChatMessage(role="assistant", content=final_response))
+                    messages.append(ChatMessage(role="assistant", content=final_response))
 
             # Rerun to clear input and refresh UI state
             st.rerun()
