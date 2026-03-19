@@ -21,3 +21,7 @@
 ## 2025-05-15 - [Visual Persona Reinforcement]
 **Learning:** In a multi-persona chat interface, prepending persona-aligned emojis to interactive elements like suggestion buttons and status messages significantly reduces cognitive load and strengthens the user's connection with the selected avatar.
 **Action:** Consistently use persona-specific icons within affordances (buttons, status labels) to provide constant visual cues of the active conversational context.
+
+## 2025-05-16 - [Professional Branding & Semantic Hierarchy]
+**Learning:** For a mental health support application, professional branding (page title, favicon) and a clear semantic hierarchy (H1, H2) are critical for establishing trust and ensuring accessibility. Using framework-native components like `st.title` and `st.set_page_config` ensures that the application is properly indexed by screen readers and provides a cohesive user experience from the browser tab to the content.
+**Action:** Always configure page metadata (title, icon) as the first Streamlit command to establish immediate trust, and use semantic header components (`st.title`, `st.subheader`) instead of raw markdown for improved accessibility and visual structure.

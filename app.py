@@ -12,6 +12,15 @@ from mistralai.models.chat_completion import ChatMessage
 # Load environment variables (ensure sensitive keys are not hardcoded)
 load_dotenv()
 
+# Set page configuration for professional branding and accessibility
+# This must be the first Streamlit command executed
+st.set_page_config(
+    page_title="Mental Health Ease Bot",
+    page_icon="🧘",
+    layout="centered",
+    initial_sidebar_state="expanded"
+)
+
 # Pre-compiled regex for sensitive data sanitization (Defense-in-depth against secret leakage)
 # Includes Mistral keys, AWS keys (AKIA/ASIA), generic password/token patterns, and Bearer tokens
 SANITIZATION_PATTERNS = [
@@ -292,7 +301,8 @@ def get_time_based_greeting():
         return "Good evening"
 
 def main():
-    st.markdown("# Mental Health Ease Bot\nYour AI companion for mental well-being and personal growth")
+    st.title("Mental Health Ease Bot")
+    st.subheader("Your AI companion for mental well-being and personal growth", divider="blue")
 
     # Initialize session state
     if "messages" not in st.session_state:
