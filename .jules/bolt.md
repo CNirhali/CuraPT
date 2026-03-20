@@ -53,3 +53,7 @@
 ## 2026-03-20 - [Local Variable Access and In-place List Truncation]
 **Learning:** Accessing `st.session_state` frequently in a large `main()` function incurs significant overhead due to Streamlit's proxying mechanism. Using local variable references (`state = st.session_state`, `messages = state.messages`) provides a massive performance boost. Furthermore, using `del messages[:-50]` for history capping is superior to slicing (`messages = messages[-50:]`) because it performs the truncation in-place, preserving the object identity and ensuring all local references to the list remain synchronized without requiring manual re-assignment.
 **Action:** Always localize session state access in `main()` and prefer in-place list operations to maintain reference integrity across the application.
+
+## 2026-03-22 - [Localizing Session State and Persona Constants]
+**Learning:** In Streamlit, accessing `st.session_state` and large global dictionaries (like persona configurations) repeatedly inside the main execution path and loops incurs significant proxy and lookup overhead. Pre-fetching these values into local variables at the start of `main()` provides a measurable speedup for every script rerun.
+**Action:** Always localize session state and frequently-used configuration constants at the beginning of the Streamlit `main()` function.

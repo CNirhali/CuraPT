@@ -194,30 +194,26 @@ def detect_crisis(message):
     if len(message) < MIN_CRISIS_KEYWORD_LEN:
         return False
 
-    msg_lower = message.lower()
+    # Optimization: O(N) fast-path using isascii() and substring check.
+    # We prioritize ASCII messages as they are the most common and don't require normalization.
     is_ascii = message.isascii()
+    msg_lower = message.lower()
 
-    # Optimization: O(N) fast-path using substring check (approx 2.3x-2.8x speedup for clean messages)
-    # The any() call is significantly faster than the regex engine for simple alternations in Python.
-    # We only apply this fast-path to ASCII messages to ensure homoglyph detection is not bypassed.
-    if is_ascii and not any(k in msg_lower for k in CRISIS_KEYWORDS_LOWER):
-        return False
+    if is_ascii:
+        # Fast-path for ASCII: use any() check before full regex search.
+        # Approx 2.3x-2.8x speedup for clean messages.
+        if not any(k in msg_lower for k in CRISIS_KEYWORDS_LOWER):
+            return False
+        return bool(CRISIS_PATTERN.search(msg_lower))
 
-    # Primary check: confirm word boundaries using pre-compiled regex
+    # Slow-path for non-ASCII messages (handles homoglyph obfuscation)
+    # Check original first to catch common keywords immediately
     if CRISIS_PATTERN.search(msg_lower):
         return True
 
-    # Secondary check: Defense-in-depth against homoglyph obfuscation
-    # Only perform if message contains non-ASCII characters to save performance
-    if not is_ascii:
-        # Normalize NFKC (handles some lookalikes and combined characters)
-        normalized = unicodedata.normalize('NFKC', msg_lower)
-        # Apply manual homoglyph mapping for common bypasses
-        normalized = normalized.translate(_HOMOGLYPH_MAP)
-        if CRISIS_PATTERN.search(normalized):
-            return True
-
-    return False
+    # Normalize NFKC and apply manual homoglyph mapping for defense-in-depth
+    normalized = unicodedata.normalize('NFKC', msg_lower).translate(_HOMOGLYPH_MAP)
+    return bool(CRISIS_PATTERN.search(normalized))
 
 def get_crisis_response():
     """Return emergency resources and crisis response."""
@@ -347,14 +343,23 @@ def main():
         welcome_msg = f"{greeting}! I'm your **{selected_avatar}**. How can I support you today?"
         messages.append(ChatMessage(role="assistant", content=welcome_msg))
 
+    # Optimization: Pre-fetch persona-specific constants to avoid redundant lookups in UI rendering
+    assistant_icon = AVATAR_ICONS[selected_avatar]
+    suggestions = AVATAR_SUGGESTIONS[selected_avatar]
+    placeholder = AVATAR_PLACEHOLDERS[selected_avatar]
+    description = AVATAR_DESCRIPTIONS[selected_avatar]
+    thinking_msg = AVATAR_THINKING_MSGS[selected_avatar]
+    here_msg = AVATAR_HERE_MSGS[selected_avatar]
+    system_msg = SYSTEM_MESSAGES[selected_avatar]
     msg_count = len(messages)
 
     with st.sidebar:
-        st.write(AVATAR_DESCRIPTIONS[selected_avatar])
-        st.caption(AVATAR_HERE_MSGS[selected_avatar])
+        st.write(description)
+        st.caption(here_msg)
         st.markdown("---")
 
     # Manage Conversation Popover
+    with st.sidebar.popover("⚙️ Manage Conversation", use_container_width=True):
     with st.sidebar.popover(f"⚙️ Manage Conversation ({msg_count} message{'s' if msg_count != 1 else ''})", use_container_width=True):
         st.write("Settings for your current chat session.")
 
@@ -379,6 +384,8 @@ def main():
 
             st.download_button(
                 label=f"📥 Export Conversation ({msg_count} message{'s' if msg_count != 1 else ''})",
+                data=state.last_export,
+                file_name=f"mental_health_bot_chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
                 data=st.session_state.last_export,
                 file_name=f"{selected_avatar.lower().replace(' ', '_')}_chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
                 mime="text/plain",
@@ -411,7 +418,6 @@ def main():
     st.sidebar.info("⚕️ This bot is **not a replacement** for professional care. If you're in distress, please use the emergency resources below.")
 
     # Display chat messages from history
-    assistant_icon = AVATAR_ICONS[selected_avatar]
     processed_suggestion = None
     for idx, message in enumerate(messages):
         avatar = assistant_icon if message.role == "assistant" else "👤"
@@ -420,7 +426,6 @@ def main():
             # Integrate suggestions into the initial greeting bubble for better visual hierarchy
             if idx == 0 and msg_count == 1:
                 st.caption("✨ Click on a suggestion below or type your own message to start:")
-                suggestions = AVATAR_SUGGESTIONS[selected_avatar]
                 for suggestion in suggestions:
                     if st.button(suggestion, use_container_width=True, help=f"Ask {selected_avatar}: '{suggestion}'"):
                         processed_suggestion = suggestion
@@ -428,11 +433,7 @@ def main():
     prompt = processed_suggestion if processed_suggestion else None
 
     # Chat input is always visible at the bottom of the page
-    # Optimization: use local selected_avatar variable
-    user_input = st.chat_input(
-        AVATAR_PLACEHOLDERS.get(selected_avatar, "How are you feeling today?"),
-        max_chars=2000
-    )
+    user_input = st.chat_input(placeholder, max_chars=2000)
     if user_input:
         prompt = user_input
 
@@ -445,14 +446,15 @@ def main():
                 st.write(sanitized_prompt)
 
             if is_crisis:
-                with st.chat_message("assistant", avatar=AVATAR_ICONS[selected_avatar]):
+                with st.chat_message("assistant", avatar=assistant_icon):
                     st.warning(crisis_text)
             else:
                 # Generate and stream bot response immediately
-                chat_context = [SYSTEM_MESSAGES[selected_avatar]] + messages[-10:]
+                chat_context = [system_msg] + messages[-10:]
 
-                with st.chat_message("assistant", avatar=AVATAR_ICONS[selected_avatar]):
+                with st.chat_message("assistant", avatar=assistant_icon):
                     response_placeholder = st.empty()
+                    response_placeholder.markdown(f"💬 *{thinking_msg}*")
                     response_placeholder.markdown(f"*{AVATAR_THINKING_MSGS[selected_avatar]}*")
                     # In modern CPython (3.6+), += string concatenation is optimized for
                     # in-place growth when no other references to the string exist.
