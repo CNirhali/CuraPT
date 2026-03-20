@@ -22,20 +22,32 @@ st.set_page_config(
 )
 
 # Pre-compiled regex for sensitive data sanitization (Defense-in-depth against secret leakage)
-# Includes Mistral keys, AWS keys (AKIA/ASIA), generic password/token patterns, and Bearer tokens
+# Includes Mistral keys, AWS, GCP, GitHub, Stripe, Slack tokens, and Private Keys
+# Order matters: Specific patterns should come before generic ones to prevent partial matches
 SANITIZATION_PATTERNS = [
+    (re.compile(r'-----BEGIN (?:[A-Z ]+) KEY-----[\s\S]*?-----END (?:[A-Z ]+) KEY-----'), '[REDACTED_PRIVATE_KEY]'),
     (re.compile(r'\b(AKIA|ASIA)[0-9A-Z]{12,124}\b'), '[REDACTED_AWS_KEY]'),
     (re.compile(r'\bsk-[a-zA-Z0-9]+\b'), '[REDACTED_API_KEY]'),
+    (re.compile(r'\bAIza[0-9A-Za-z-_]{35}\b'), '[REDACTED_GCP_KEY]'),
+    (re.compile(r'\bgh[pours]_[a-zA-Z0-9]{36}\b'), '[REDACTED_GITHUB_TOKEN]'),
+    (re.compile(r'\bsk_(?:live|test)_[0-9a-zA-Z]{24}\b'), '[REDACTED_STRIPE_KEY]'),
+    (re.compile(r'\bxox[bpgrs]-[0-9a-zA-Z]{10,48}\b'), '[REDACTED_SLACK_TOKEN]'),
     (re.compile(r'(?i)Bearer\s+[a-zA-Z0-9._\-\/+=]+'), 'Bearer [REDACTED]'),
     # Enhanced pattern to handle quoted secrets and preserve original separators
     # Use negative lookahead to avoid re-redacting already masked values
-    (re.compile(r'(?i)\b(password|passwd|secret|token|key|api_key|aws_secret_access_key)(\s*(?:[:=]|is)\s*)(?!\[REDACTED)(?:"[^"]*"|\'[^\']*\'|[^\s,;]+)'), r'\1\2[REDACTED]')
+    (re.compile(r'(?i)\b(password|passwd|secret|token|api_key|aws_secret_access_key)(\s*(?:[:=]|is)\s*)(?!\[REDACTED)(?:"[^"]*"|\'[^\']*\'|[^\s,;]+)'), r'\1\2[REDACTED]'),
+    # Generic 'key' pattern is last and avoids matching PEM headers via negative lookahead
+    (re.compile(r'(?i)\b(key)(\s*(?:[:=]|is)\s*)(?!\[REDACTED|---)(?:"[^"]*"|\'[^\']*\'|[^\s,;]+)'), r'\1\2[REDACTED]')
 ]
 # Optimization: Substring markers to trigger expensive regex execution
 # Refinement: replaced 'pass' with 'password'/'passwd' to avoid false positives on 'compassion'
-# Included 'akia', 'asia', and 'aws_secret_access_key' for detection
+# Included markers for AWS, GCP, GitHub (ghp/gho/ghu/ghr/ghs), Stripe, Slack (xoxb/xoxp/xoxg/xoxr/xoxs) and Private Keys
 # Reordered to place highly frequent markers at the beginning for faster short-circuiting in any()
-SENSITIVE_MARKERS = ["password", "token", "sk-", "secret", "key", "passwd", "akia", "asia", "bearer", "aws_secret_access_key"]
+SENSITIVE_MARKERS = [
+    "password", "token", "sk-", "secret", "key", "passwd", "akia", "asia", "bearer",
+    "aiza", "ghp_", "gho_", "ghu_", "ghr_", "ghs_", "sk_live", "sk_test",
+    "xoxb-", "xoxp-", "xoxg-", "xoxr-", "xoxs-", "begin", "aws_secret_access_key"
+]
 
 def sanitize_error(message):
     """
@@ -164,11 +176,12 @@ AVATAR_HERE_MSGS = {
 # Crisis detection keywords and pre-compiled regex for performance
 # Sorted by length (ascending) to improve short-circuiting performance of the any() check
 CRISIS_KEYWORDS = [
-    "kill me", "suicide", "hopeless", "jump off", "overdose", "suicidal",
-    "can't go on", "cut myself", "end it all", "end my life", "hurt myself",
-    "take my life", "want to die", "hang myself", "hurt yourself", "kill myself",
-    "self-harm", "better off dead", "ending it all", "jumping off", "kill yourself",
-    "slit my wrists", "ending your life", "poison myself", "no reason to live",
+    "unalive", "suicide", "kill me", "hopeless", "jump off", "overdose",
+    "suicidal", "self harm", "can't go on", "cut myself", "end it all",
+    "end my life", "hurt myself", "take my life", "want to die", "hang myself",
+    "self-harm", "hurt yourself", "kill myself", "better off dead",
+    "ending it all", "jumping off", "kill yourself", "slit my wrists",
+    "ending your life", "poison myself", "no reason to live",
     "don't want to be here anymore"
 ]
 # Pre-calculate lowercase keywords for O(N) fast-path check
