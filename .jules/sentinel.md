@@ -53,3 +53,8 @@
 **Vulnerability:** Generic redaction patterns (e.g., matching any "key: value" pair) can overwrite more specific redaction labels (e.g., `[REDACTED_AWS_KEY]`), leading to a loss of diagnostic context in logs or UI.
 **Learning:** When multiple redaction regexes are applied in sequence, broader patterns can consume already-redacted strings if they aren't carefully constrained.
 **Prevention:** Use negative lookaheads (e.g., `(?!\[REDACTED)`) in broader, generic redaction patterns to prevent them from matching and over-writing strings that have already been masked by more specific, higher-priority patterns.
+
+## 2026-03-17 - [Redaction Pipeline Interference with Multi-line Blocks]
+**Vulnerability:** Generic redaction patterns for single-line secrets (like `key: value`) can partially match and corrupt multi-line sensitive blocks (like PEM Private Keys) before they are fully redacted by specific patterns.
+**Learning:** Redaction pipelines must be ordered from most specific to least specific. Additionally, generic patterns should use negative lookaheads to explicitly ignore start-of-block markers (e.g., `---`) for multi-line secrets to ensure the specific block-level redaction handles them completely.
+**Prevention:** Ensure specific block-level redaction regexes are at the top of the pipeline and add `(?!---)` lookaheads to generic 'key' or 'secret' patterns.
