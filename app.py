@@ -261,7 +261,7 @@ def get_bot_response(messages):
         # Return a generic error message to the user to prevent information leakage (OWASP A03:2021)
         yield "I'm here for you, but I'm having a little trouble connecting right now. Please try again in a moment."
 
-def handle_user_input(prompt):
+def handle_user_input(prompt, avatar_icon="🧘"):
     """Update state with user input and check for crisis. Returns (success, is_crisis, crisis_text, sanitized_prompt)."""
     # Server-side length validation as defense-in-depth against resource exhaustion
     if len(prompt) > 2000:
@@ -271,7 +271,7 @@ def handle_user_input(prompt):
     current_time = time.time()
     time_since_last = current_time - st.session_state.get("last_message_time", 0)
     if time_since_last < 2.0:
-        st.toast(f"Take a breath! Please wait {2.0 - time_since_last:.1f}s", icon="🧘")
+        st.toast(f"Take a breath! Please wait {2.0 - time_since_last:.1f}s", icon=avatar_icon)
         return False, False, None, prompt
 
     st.session_state.last_message_time = current_time
@@ -347,14 +347,15 @@ def main():
         welcome_msg = f"{greeting}! I'm your **{selected_avatar}**. How can I support you today?"
         messages.append(ChatMessage(role="assistant", content=welcome_msg))
 
+    msg_count = len(messages)
+
     with st.sidebar:
         st.write(AVATAR_DESCRIPTIONS[selected_avatar])
         st.caption(AVATAR_HERE_MSGS[selected_avatar])
         st.markdown("---")
 
     # Manage Conversation Popover
-    with st.sidebar.popover("⚙️ Manage Conversation", use_container_width=True):
-        msg_count = len(messages)
+    with st.sidebar.popover(f"⚙️ Manage Conversation ({msg_count} message{'s' if msg_count != 1 else ''})", use_container_width=True):
         st.write("Settings for your current chat session.")
 
         # Export History
@@ -379,7 +380,7 @@ def main():
             st.download_button(
                 label=f"📥 Export Conversation ({msg_count} message{'s' if msg_count != 1 else ''})",
                 data=st.session_state.last_export,
-                file_name=f"mental_health_bot_chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                file_name=f"{selected_avatar.lower().replace(' ', '_')}_chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
                 mime="text/plain",
                 help="Download a copy of your current conversation history.",
                 use_container_width=True
@@ -437,7 +438,7 @@ def main():
 
     # Message processing
     if prompt:
-        success, is_crisis, crisis_text, sanitized_prompt = handle_user_input(prompt)
+        success, is_crisis, crisis_text, sanitized_prompt = handle_user_input(prompt, avatar_icon=AVATAR_ICONS[selected_avatar])
         if success:
             # Immediate feedback: render sanitized user message
             with st.chat_message("user", avatar="👤"):
@@ -452,7 +453,7 @@ def main():
 
                 with st.chat_message("assistant", avatar=AVATAR_ICONS[selected_avatar]):
                     response_placeholder = st.empty()
-                    response_placeholder.markdown(f"💬 *{AVATAR_THINKING_MSGS[selected_avatar]}*")
+                    response_placeholder.markdown(f"*{AVATAR_THINKING_MSGS[selected_avatar]}*")
                     # In modern CPython (3.6+), += string concatenation is optimized for
                     # in-place growth when no other references to the string exist.
                     full_response = ""
