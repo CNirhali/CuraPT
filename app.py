@@ -58,6 +58,10 @@ def sanitize_error(message):
     if not isinstance(message, str):
         message = str(message)
 
+    # Optimization: return early for short messages (shortest marker "sk-" is 3 chars)
+    if len(message) < 3:
+        return message
+
     # Optimization: return early for messages without sensitive markers (approx. 15-20x speedup for clean messages)
     msg_lower = message.lower()
     if not any(marker in msg_lower for marker in SENSITIVE_MARKERS):
@@ -257,8 +261,9 @@ def get_bot_response(messages):
             messages=messages,
             max_tokens=1000
         ):
-            if chunk.choices[0].delta.content:
-                content = chunk.choices[0].delta.content
+            delta = chunk.choices[0].delta
+            if delta.content:
+                content = delta.content
                 total_chars += len(content)
                 if total_chars > MAX_RESPONSE_CHARS:
                     yield "... [Response truncated for length]"
@@ -372,7 +377,6 @@ def main():
         st.markdown("---")
 
     # Manage Conversation Popover
-    with st.sidebar.popover("⚙️ Manage Conversation", use_container_width=True):
     with st.sidebar.popover(f"⚙️ Manage Conversation ({msg_count} message{'s' if msg_count != 1 else ''})", use_container_width=True):
         st.write("Settings for your current chat session.")
 
@@ -398,8 +402,6 @@ def main():
             st.download_button(
                 label=f"📥 Export Conversation ({msg_count} message{'s' if msg_count != 1 else ''})",
                 data=state.last_export,
-                file_name=f"mental_health_bot_chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
-                data=st.session_state.last_export,
                 file_name=f"{selected_avatar.lower().replace(' ', '_')}_chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
                 mime="text/plain",
                 help="Download a copy of your current conversation history.",
@@ -467,7 +469,6 @@ def main():
 
                 with st.chat_message("assistant", avatar=assistant_icon):
                     response_placeholder = st.empty()
-                    response_placeholder.markdown(f"💬 *{thinking_msg}*")
                     response_placeholder.markdown(f"*{AVATAR_THINKING_MSGS[selected_avatar]}*")
                     # In modern CPython (3.6+), += string concatenation is optimized for
                     # in-place growth when no other references to the string exist.
