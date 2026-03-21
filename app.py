@@ -32,6 +32,7 @@ SANITIZATION_PATTERNS = [
     (re.compile(r'\bgh[pours]_[a-zA-Z0-9]{36}\b'), '[REDACTED_GITHUB_TOKEN]'),
     (re.compile(r'\bsk_(?:live|test)_[0-9a-zA-Z]{24}\b'), '[REDACTED_STRIPE_KEY]'),
     (re.compile(r'\bxox[bpgrs]-[0-9a-zA-Z]{10,48}\b'), '[REDACTED_SLACK_TOKEN]'),
+    (re.compile(r'\b(?:4[0-9]{3}|5[1-5][0-9]{2}|6011)(?:[\s-]?[0-9]{4}){3}\b|\b3[47][0-9]{2}[\s-]?[0-9]{6}[\s-]?[0-9]{5}\b'), '[REDACTED_PII]'),
     (re.compile(r'(?i)Bearer\s+[a-zA-Z0-9._\-\/+=]+'), 'Bearer [REDACTED]'),
     # Enhanced pattern to handle quoted secrets and preserve original separators
     # Use negative lookahead to avoid re-redacting already masked values
@@ -46,7 +47,8 @@ SANITIZATION_PATTERNS = [
 SENSITIVE_MARKERS = [
     "password", "token", "sk-", "secret", "key", "passwd", "akia", "asia", "bearer",
     "aiza", "ghp_", "gho_", "ghu_", "ghr_", "ghs_", "sk_live", "sk_test",
-    "xoxb-", "xoxp-", "xoxg-", "xoxr-", "xoxs-", "begin", "aws_secret_access_key"
+    "xoxb-", "xoxp-", "xoxg-", "xoxr-", "xoxs-", "begin", "aws_secret_access_key",
+    "4012", "4111", "4222", "5105", "5500", "3400", "3700", "3782", "6011"
 ]
 
 def sanitize_error(message):
@@ -372,7 +374,6 @@ def main():
         st.markdown("---")
 
     # Manage Conversation Popover
-    with st.sidebar.popover("⚙️ Manage Conversation", use_container_width=True):
     with st.sidebar.popover(f"⚙️ Manage Conversation ({msg_count} message{'s' if msg_count != 1 else ''})", use_container_width=True):
         st.write("Settings for your current chat session.")
 
@@ -398,8 +399,6 @@ def main():
             st.download_button(
                 label=f"📥 Export Conversation ({msg_count} message{'s' if msg_count != 1 else ''})",
                 data=state.last_export,
-                file_name=f"mental_health_bot_chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
-                data=st.session_state.last_export,
                 file_name=f"{selected_avatar.lower().replace(' ', '_')}_chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
                 mime="text/plain",
                 help="Download a copy of your current conversation history.",
@@ -467,7 +466,6 @@ def main():
 
                 with st.chat_message("assistant", avatar=assistant_icon):
                     response_placeholder = st.empty()
-                    response_placeholder.markdown(f"💬 *{thinking_msg}*")
                     response_placeholder.markdown(f"*{AVATAR_THINKING_MSGS[selected_avatar]}*")
                     # In modern CPython (3.6+), += string concatenation is optimized for
                     # in-place growth when no other references to the string exist.
