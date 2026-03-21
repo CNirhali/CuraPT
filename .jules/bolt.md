@@ -57,3 +57,7 @@
 ## 2026-03-22 - [Localizing Session State and Persona Constants]
 **Learning:** In Streamlit, accessing `st.session_state` and large global dictionaries (like persona configurations) repeatedly inside the main execution path and loops incurs significant proxy and lookup overhead. Pre-fetching these values into local variables at the start of `main()` provides a measurable speedup for every script rerun.
 **Action:** Always localize session state and frequently-used configuration constants at the beginning of the Streamlit `main()` function.
+
+## 2026-03-24 - [Loop Invariant UI Removal and Streaming Refactoring]
+**Learning:** In Streamlit, redundant UI calls (like multiple markdown updates for the same placeholder) trigger unnecessary state management and rendering cycles. Additionally, localizing high-frequency objects (like 'delta' from a Mistral chunk) within a streaming loop reduces nested attribute lookup overhead in CPython. Implementing a length-based fast-path (e.g., 'len(message) < 3') for sanitization logic also provides a quick win for very short inputs.
+**Action:** Always identify and remove redundant UI widget calls and localize nested object attributes inside high-frequency loops to minimize per-interaction overhead.

@@ -60,6 +60,10 @@ def sanitize_error(message):
     if not isinstance(message, str):
         message = str(message)
 
+    # Optimization: return early for short messages (shortest marker "sk-" is 3 chars)
+    if len(message) < 3:
+        return message
+
     # Optimization: return early for messages without sensitive markers (approx. 15-20x speedup for clean messages)
     msg_lower = message.lower()
     if not any(marker in msg_lower for marker in SENSITIVE_MARKERS):
@@ -259,8 +263,9 @@ def get_bot_response(messages):
             messages=messages,
             max_tokens=1000
         ):
-            if chunk.choices[0].delta.content:
-                content = chunk.choices[0].delta.content
+            delta = chunk.choices[0].delta
+            if delta.content:
+                content = delta.content
                 total_chars += len(content)
                 if total_chars > MAX_RESPONSE_CHARS:
                     yield "... [Response truncated for length]"
