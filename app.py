@@ -27,7 +27,7 @@ st.set_page_config(
 SANITIZATION_PATTERNS = [
     (re.compile(r'-----BEGIN (?:[A-Z ]+) KEY-----[\s\S]*?-----END (?:[A-Z ]+) KEY-----'), '[REDACTED_PRIVATE_KEY]'),
     (re.compile(r'\b(AKIA|ASIA)[0-9A-Z]{12,124}\b'), '[REDACTED_AWS_KEY]'),
-    (re.compile(r'\bsk-[a-zA-Z0-9]+\b'), '[REDACTED_API_KEY]'),
+    (re.compile(r'\bsk-[a-zA-Z0-9-_]+\b'), '[REDACTED_API_KEY]'),
     (re.compile(r'\bAIza[0-9A-Za-z-_]{35}\b'), '[REDACTED_GCP_KEY]'),
     (re.compile(r'\bgh[pours]_[a-zA-Z0-9]{36}\b'), '[REDACTED_GITHUB_TOKEN]'),
     (re.compile(r'\bsk_(?:live|test)_[0-9a-zA-Z]{24}\b'), '[REDACTED_STRIPE_KEY]'),
