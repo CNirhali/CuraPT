@@ -44,10 +44,12 @@ SANITIZATION_PATTERNS = [
 # Refinement: replaced 'pass' with 'password'/'passwd' to avoid false positives on 'compassion'
 # Included markers for AWS, GCP, GitHub (ghp/gho/ghu/ghr/ghs), Stripe, Slack (xoxb/xoxp/xoxg/xoxr/xoxs) and Private Keys
 # Reordered to place highly frequent markers at the beginning for faster short-circuiting in any()
+# Refinement: replaced 'begin' with '-----begin' to reduce false positives for common text.
+# Redundant 'aws_secret_access_key' removed as it is covered by 'key'.
 SENSITIVE_MARKERS = [
     "password", "token", "sk-", "secret", "key", "passwd", "akia", "asia", "bearer",
     "aiza", "ghp_", "gho_", "ghu_", "ghr_", "ghs_", "sk_live", "sk_test",
-    "xoxb-", "xoxp-", "xoxg-", "xoxr-", "xoxs-", "begin", "aws_secret_access_key",
+    "xoxb-", "xoxp-", "xoxg-", "xoxr-", "xoxs-", "-----begin",
     "4012", "4111", "4222", "5105", "5500", "3400", "3700", "3782", "6011"
 ]
 
