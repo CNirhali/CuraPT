@@ -338,6 +338,8 @@ def main():
         state.selected_avatar = "Therapist"
     if "last_message_time" not in state:
         state.last_message_time = 0
+    if "session_start_time" not in state:
+        state.session_start_time = datetime.now().strftime('%H:%M:%S')
 
     # Local references for performance
     messages = state.messages
@@ -365,6 +367,9 @@ def main():
         welcome_msg = f"{greeting}! I'm your **{selected_avatar}**. How can I support you today?"
         messages.append(ChatMessage(role="assistant", content=welcome_msg))
 
+    # Calculate msg_count after initialization to ensure accurate first-load reporting
+    msg_count = len(messages)
+
     # Optimization: Pre-fetch persona-specific constants to avoid redundant lookups in UI rendering
     assistant_icon = AVATAR_ICONS[selected_avatar]
     suggestions = AVATAR_SUGGESTIONS[selected_avatar]
@@ -373,7 +378,6 @@ def main():
     thinking_msg = AVATAR_THINKING_MSGS[selected_avatar]
     here_msg = AVATAR_HERE_MSGS[selected_avatar]
     system_msg = SYSTEM_MESSAGES[selected_avatar]
-    msg_count = len(messages)
 
     with st.sidebar:
         st.write(description)
@@ -383,6 +387,7 @@ def main():
     # Manage Conversation Popover
     with st.sidebar.popover(f"⚙️ Manage Conversation ({msg_count} message{'s' if msg_count != 1 else ''})", use_container_width=True):
         st.write("Settings for your current chat session.")
+        st.caption(f"🕒 Session started at {state.session_start_time}")
 
         # Export History
         if messages:
@@ -423,8 +428,10 @@ def main():
                      help="Delete all messages and start a new conversation",
                      use_container_width=True,
                      disabled=not confirm_clear,
-                     type="secondary"):
+                     type="primary" if confirm_clear else "secondary"):
             state.messages = []
+            # Reset session start time for fresh conversation
+            state.session_start_time = datetime.now().strftime('%H:%M:%S')
             st.toast("Conversation cleared 🌱")
             st.rerun()
 
@@ -473,6 +480,7 @@ def main():
 
                 with st.chat_message("assistant", avatar=assistant_icon):
                     response_placeholder = st.empty()
+                    response_placeholder.markdown(f"💬 *{thinking_msg}*")
                     response_placeholder.markdown(f"*{AVATAR_THINKING_MSGS[selected_avatar]}*")
                     # In modern CPython (3.6+), += string concatenation is optimized for
                     # in-place growth when no other references to the string exist.

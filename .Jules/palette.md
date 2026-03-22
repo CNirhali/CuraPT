@@ -25,3 +25,11 @@
 ## 2025-05-16 - [Professional Branding & Semantic Hierarchy]
 **Learning:** For a mental health support application, professional branding (page title, favicon) and a clear semantic hierarchy (H1, H2) are critical for establishing trust and ensuring accessibility. Using framework-native components like `st.title` and `st.set_page_config` ensures that the application is properly indexed by screen readers and provides a cohesive user experience from the browser tab to the content.
 **Action:** Always configure page metadata (title, icon) as the first Streamlit command to establish immediate trust, and use semantic header components (`st.title`, `st.subheader`) instead of raw markdown for improved accessibility and visual structure.
+
+## 2025-05-16 - [Dynamic Interaction Affordances]
+**Learning:** In a data-management context (like clearing chat history), changing a button's visual weight (e.g., from `secondary` to `primary`) based on a confirmation checkbox provides a powerful "ready to proceed" signal. This reduces cognitive load by clearly indicating when a destructive action is fully unlocked and ready to be executed.
+**Action:** Use conditional styling (e.g., `type="primary" if confirmed else "secondary"`) for high-stakes actions to provide immediate visual feedback on the state of the interaction flow.
+
+## 2025-05-16 - [Accurate Information Scent]
+**Learning:** For users, knowing the exact scale of an action (like exporting or clearing) is crucial for confidence. Ensuring that UI elements (like popover labels) reflect accurate message counts immediately upon first load (by calculating counts *after* greeting initialization) establishes an early sense of reliability and transparency.
+**Action:** Always synchronize metadata calculations (counts, timestamps) with the final state of the UI data in the current render cycle to ensure absolute accuracy in information display.
