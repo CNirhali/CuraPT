@@ -49,5 +49,17 @@ class TestSanitizeError(unittest.TestCase):
         self.assertIn("Bearer [REDACTED]", sanitized)
         self.assertNotIn("eyJhbGciOiJIUzI1NiIs", sanitized)
 
+    def test_sanitize_error_pii_credit_card(self):
+        msg = "My card number is 4111 1111 1111 1111"
+        sanitized = sanitize_error(msg)
+        self.assertIn("[REDACTED_PII]", sanitized)
+        self.assertNotIn("4111", sanitized)
+
+    def test_sanitize_error_pii_amex(self):
+        msg = "My amex is 3782-822463-10005"
+        sanitized = sanitize_error(msg)
+        self.assertIn("[REDACTED_PII]", sanitized)
+        self.assertNotIn("3782", sanitized)
+
 if __name__ == '__main__':
     unittest.main()

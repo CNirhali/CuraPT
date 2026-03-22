@@ -58,3 +58,7 @@
 **Vulnerability:** Generic redaction patterns for single-line secrets (like `key: value`) can partially match and corrupt multi-line sensitive blocks (like PEM Private Keys) before they are fully redacted by specific patterns.
 **Learning:** Redaction pipelines must be ordered from most specific to least specific. Additionally, generic patterns should use negative lookaheads to explicitly ignore start-of-block markers (e.g., `---`) for multi-line secrets to ensure the specific block-level redaction handles them completely.
 **Prevention:** Ensure specific block-level redaction regexes are at the top of the pipeline and add `(?!---)` lookaheads to generic 'key' or 'secret' patterns.
+## 2026-03-21 - PII Redaction Fast-Path Synchronization
+**Vulnerability:** Potential leakage of Credit Card numbers (PII) in UI error messages or exported logs due to missing redaction patterns.
+**Learning:** Adding complex regex patterns for PII (like Credit Cards) in a performance-optimized sanitization function requires explicit synchronization with the fast-path substring markers (`SENSITIVE_MARKERS`). Failing to add numeric prefixes (e.g., '3782' for Amex, '4111' for Visa) to the markers list causes the entire regex engine to be bypassed for messages containing these PII patterns but lacking other sensitive keywords.
+**Prevention:** Always update the fast-path trigger list (`SENSITIVE_MARKERS`) when adding new high-priority redaction patterns to ensure the security logic is actually executed for those patterns.

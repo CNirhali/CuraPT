@@ -32,6 +32,7 @@ SANITIZATION_PATTERNS = [
     (re.compile(r'\bgh[pours]_[a-zA-Z0-9]{36}\b'), '[REDACTED_GITHUB_TOKEN]'),
     (re.compile(r'\bsk_(?:live|test)_[0-9a-zA-Z]{24}\b'), '[REDACTED_STRIPE_KEY]'),
     (re.compile(r'\bxox[bpgrs]-[0-9a-zA-Z]{10,48}\b'), '[REDACTED_SLACK_TOKEN]'),
+    (re.compile(r'\b(?:4[0-9]{3}|5[1-5][0-9]{2}|6011)(?:[\s-]?[0-9]{4}){3}\b|\b3[47][0-9]{2}[\s-]?[0-9]{6}[\s-]?[0-9]{5}\b'), '[REDACTED_PII]'),
     (re.compile(r'(?i)Bearer\s+[a-zA-Z0-9._\-\/+=]+'), 'Bearer [REDACTED]'),
     # Enhanced pattern to handle quoted secrets and preserve original separators
     # Use negative lookahead to avoid re-redacting already masked values
@@ -43,10 +44,13 @@ SANITIZATION_PATTERNS = [
 # Refinement: replaced 'pass' with 'password'/'passwd' to avoid false positives on 'compassion'
 # Included markers for AWS, GCP, GitHub (ghp/gho/ghu/ghr/ghs), Stripe, Slack (xoxb/xoxp/xoxg/xoxr/xoxs) and Private Keys
 # Reordered to place highly frequent markers at the beginning for faster short-circuiting in any()
+# Refinement: replaced 'begin' with '-----begin' to reduce false positives for common text.
+# Redundant 'aws_secret_access_key' removed as it is covered by 'key'.
 SENSITIVE_MARKERS = [
     "password", "token", "sk-", "secret", "key", "passwd", "akia", "asia", "bearer",
     "aiza", "ghp_", "gho_", "ghu_", "ghr_", "ghs_", "sk_live", "sk_test",
-    "xoxb-", "xoxp-", "xoxg-", "xoxr-", "xoxs-", "begin", "aws_secret_access_key"
+    "xoxb-", "xoxp-", "xoxg-", "xoxr-", "xoxs-", "-----begin",
+    "4012", "4111", "4222", "5105", "5500", "3400", "3700", "3782", "6011"
 ]
 
 def sanitize_error(message):
@@ -57,6 +61,10 @@ def sanitize_error(message):
     """
     if not isinstance(message, str):
         message = str(message)
+
+    # Optimization: return early for short messages (shortest marker "sk-" is 3 chars)
+    if len(message) < 3:
+        return message
 
     # Optimization: return early for messages without sensitive markers (approx. 15-20x speedup for clean messages)
     msg_lower = message.lower()
@@ -257,8 +265,9 @@ def get_bot_response(messages):
             messages=messages,
             max_tokens=1000
         ):
-            if chunk.choices[0].delta.content:
-                content = chunk.choices[0].delta.content
+            delta = chunk.choices[0].delta
+            if delta.content:
+                content = delta.content
                 total_chars += len(content)
                 if total_chars > MAX_RESPONSE_CHARS:
                     yield "... [Response truncated for length]"
@@ -472,6 +481,7 @@ def main():
                 with st.chat_message("assistant", avatar=assistant_icon):
                     response_placeholder = st.empty()
                     response_placeholder.markdown(f"💬 *{thinking_msg}*")
+                    response_placeholder.markdown(f"*{AVATAR_THINKING_MSGS[selected_avatar]}*")
                     # In modern CPython (3.6+), += string concatenation is optimized for
                     # in-place growth when no other references to the string exist.
                     full_response = ""
