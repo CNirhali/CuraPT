@@ -339,7 +339,7 @@ def main():
     if "last_message_time" not in state:
         state.last_message_time = 0
     if "session_start_time" not in state:
-        state.session_start_time = datetime.now().strftime('%H:%M:%S')
+        state.session_start_time = datetime.now()
 
     # Local references for performance
     messages = state.messages
@@ -359,7 +359,7 @@ def main():
         state.messages = []
         # Update local references after state change
         messages = state.messages
-        st.toast(f"Switched to {selected_avatar}", icon=AVATAR_ICONS[selected_avatar])
+        st.toast(f"{selected_avatar} {AVATAR_READY_MSGS[selected_avatar]}", icon=AVATAR_ICONS[selected_avatar])
 
     # Ensure the conversation starts with a persona-specific welcome message
     if not messages:
@@ -387,7 +387,7 @@ def main():
     # Manage Conversation Popover
     with st.sidebar.popover(f"⚙️ Manage Conversation ({msg_count} message{'s' if msg_count != 1 else ''})", use_container_width=True):
         st.write("Settings for your current chat session.")
-        st.caption(f"🕒 Session started at {state.session_start_time}")
+        st.caption(f"🕒 Session started at {state.session_start_time.strftime('%H:%M:%S')}")
 
         # Export History
         if messages:
@@ -395,9 +395,16 @@ def main():
             cache_key = f"export_cache_{selected_avatar}_{msg_count}"
 
             if "last_export" not in state or state.get("export_cache_key") != cache_key:
+                now = datetime.now()
+                duration = now - state.session_start_time
+                hours, remainder = divmod(int(duration.total_seconds()), 3600)
+                minutes, seconds = divmod(remainder, 60)
+                duration_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
                 export_parts = [
                     f"Mental Health Ease Bot - {selected_avatar} Session",
-                    f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                    f"Date: {now.strftime('%Y-%m-%d %H:%M:%S')}",
+                    f"Session Duration: {duration_str}",
                     "-" * 40 + "\n"
                 ]
                 export_parts.extend(
@@ -431,7 +438,7 @@ def main():
                      type="primary" if confirm_clear else "secondary"):
             state.messages = []
             # Reset session start time for fresh conversation
-            state.session_start_time = datetime.now().strftime('%H:%M:%S')
+            state.session_start_time = datetime.now()
             st.toast("Conversation cleared 🌱")
             st.rerun()
 
@@ -480,8 +487,7 @@ def main():
 
                 with st.chat_message("assistant", avatar=assistant_icon):
                     response_placeholder = st.empty()
-                    response_placeholder.markdown(f"💬 *{thinking_msg}*")
-                    response_placeholder.markdown(f"*{AVATAR_THINKING_MSGS[selected_avatar]}*")
+                    response_placeholder.markdown(f"*{thinking_msg}*")
                     # In modern CPython (3.6+), += string concatenation is optimized for
                     # in-place growth when no other references to the string exist.
                     full_response = ""
