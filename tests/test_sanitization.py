@@ -61,5 +61,18 @@ class TestSanitizeError(unittest.TestCase):
         self.assertIn("[REDACTED_PII]", sanitized)
         self.assertNotIn("3782", sanitized)
 
+    def test_sanitize_error_masks_api_key_with_hyphens_and_underscores(self):
+        # Test Anthropic style, OpenAI project keys, and keys with underscores
+        test_keys = [
+            "sk-ant-api03-1234567890abcdef1234567890abcdef",
+            "sk-proj-1234567890_abcdef1234567890abcdef",
+            "sk-secret_key-12345"
+        ]
+        for key in test_keys:
+            sensitive_msg = f"Error with key {key}"
+            sanitized = sanitize_error(sensitive_msg)
+            self.assertIn("[REDACTED_API_KEY]", sanitized)
+            self.assertNotIn(key, sanitized)
+
 if __name__ == '__main__':
     unittest.main()

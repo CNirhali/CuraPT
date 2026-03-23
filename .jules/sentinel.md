@@ -62,3 +62,8 @@
 **Vulnerability:** Potential leakage of Credit Card numbers (PII) in UI error messages or exported logs due to missing redaction patterns.
 **Learning:** Adding complex regex patterns for PII (like Credit Cards) in a performance-optimized sanitization function requires explicit synchronization with the fast-path substring markers (`SENSITIVE_MARKERS`). Failing to add numeric prefixes (e.g., '3782' for Amex, '4111' for Visa) to the markers list causes the entire regex engine to be bypassed for messages containing these PII patterns but lacking other sensitive keywords.
 **Prevention:** Always update the fast-path trigger list (`SENSITIVE_MARKERS`) when adding new high-priority redaction patterns to ensure the security logic is actually executed for those patterns.
+
+## 2026-03-22 - [Partial Secret Redaction due to Hyphens and Underscores]
+**Vulnerability:** API keys containing hyphens or underscores (e.g., Anthropic, OpenAI project keys) were only partially redacted, potentially leaking the remainder of the secret.
+**Learning:** Generic alphanumeric regexes for secrets (like `sk-[a-zA-Z0-9]+`) fail on keys that incorporate hyphens or underscores as separators, leading to insecure partial masking.
+**Prevention:** Ensure secret redaction regexes account for all possible character sets used by providers, including hyphens and underscores, and verify against a diverse set of real-world key formats.
