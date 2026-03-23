@@ -364,7 +364,7 @@ def main():
     # Ensure the conversation starts with a persona-specific welcome message
     if not messages:
         greeting = get_time_based_greeting()
-        welcome_msg = f"{greeting}! I'm your **{selected_avatar}**. How can I support you today?"
+        welcome_msg = f"{greeting}! I'm {selected_avatar}, your companion for today. I'm here to listen and support you. How are you feeling?"
         messages.append(ChatMessage(role="assistant", content=welcome_msg))
 
     # Calculate msg_count after initialization to ensure accurate first-load reporting
@@ -411,6 +411,15 @@ def main():
                     f"{selected_avatar if msg.role == 'assistant' else 'You'}: {msg.content}\n"
                     for msg in messages
                 )
+                export_parts.append("\n" + "=" * 40)
+                export_parts.append("🆘 Safety Resources")
+                export_parts.append("-" * 40)
+                export_parts.append("If you are in distress, please contact:")
+                export_parts.append("- National Suicide Prevention Lifeline: Call or Text 988")
+                export_parts.append("- Crisis Text Line: Text HOME to 741741")
+                export_parts.append("- Emergency Services: Call 911")
+                export_parts.append("=" * 40 + "\n")
+
                 # Apply defense-in-depth sanitization to the final export transcript
                 state.last_export = sanitize_error("\n".join(export_parts) + "\n")
                 state.export_cache_key = cache_key
@@ -447,6 +456,7 @@ def main():
             - 🔒 **Conversations are confidential** and not stored on our servers permanently.
             - 🔑 Your **Mistral API key** is used only for processing this session.
         """)
+    st.sidebar.caption("Tip: Press **Enter** to send, **Shift+Enter** for new lines.")
 
     st.sidebar.info("⚕️ This bot is **not a replacement** for professional care. If you're in distress, please use the emergency resources below.")
 
@@ -454,7 +464,8 @@ def main():
     processed_suggestion = None
     for idx, message in enumerate(messages):
         avatar = assistant_icon if message.role == "assistant" else "👤"
-        with st.chat_message(message.role, avatar=avatar):
+        role_label = selected_avatar if message.role == "assistant" else "user"
+        with st.chat_message(role_label, avatar=avatar):
             st.write(message.content)
             # Integrate suggestions into the initial greeting bubble for better visual hierarchy
             if idx == 0 and msg_count == 1:
@@ -479,15 +490,15 @@ def main():
                 st.write(sanitized_prompt)
 
             if is_crisis:
-                with st.chat_message("assistant", avatar=assistant_icon):
+                with st.chat_message(selected_avatar, avatar=assistant_icon):
                     st.warning(crisis_text)
             else:
                 # Generate and stream bot response immediately
                 chat_context = [system_msg] + messages[-10:]
 
-                with st.chat_message("assistant", avatar=assistant_icon):
+                with st.chat_message(selected_avatar, avatar=assistant_icon):
                     response_placeholder = st.empty()
-                    response_placeholder.markdown(f"*{thinking_msg}*")
+                    response_placeholder.markdown(f"**{thinking_msg}**")
                     # In modern CPython (3.6+), += string concatenation is optimized for
                     # in-place growth when no other references to the string exist.
                     full_response = ""
