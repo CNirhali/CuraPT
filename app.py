@@ -145,49 +145,41 @@ AVATARS = {
     }
 }
 
-# Pre-calculate avatar options, system messages, and icons for performance
+# Pre-calculate avatar options and mappings for performance
 AVATAR_OPTIONS = list(AVATARS.keys())
 AVATAR_INDEX = {name: i for i, name in enumerate(AVATAR_OPTIONS)}
-SYSTEM_MESSAGES = {
-    name: ChatMessage(role="system", content=data["system_prompt"])
-    for name, data in AVATARS.items()
-}
-AVATAR_ICONS = {
-    name: data["icon"]
-    for name, data in AVATARS.items()
-}
-AVATAR_PLACEHOLDERS = {
-    name: data["chat_placeholder"]
-    for name, data in AVATARS.items()
-}
-AVATAR_THINKING_MSGS = {
-    name: data["thinking_msg"]
-    for name, data in AVATARS.items()
-}
-AVATAR_DISPLAY_NAMES = {
-    name: f"{data['icon']} {name}"
-    for name, data in AVATARS.items()
-}
-AVATAR_DESCRIPTIONS = {
-    name: data["description"]
-    for name, data in AVATARS.items()
-}
-AVATAR_SUGGESTIONS = {
-    name: data["suggestions"]
-    for name, data in AVATARS.items()
-}
-AVATAR_READY_MSGS = {
-    name: data["ready_msg"]
-    for name, data in AVATARS.items()
-}
-AVATAR_THEME_COLORS = {
-    name: data["theme_color"]
-    for name, data in AVATARS.items()
-}
-AVATAR_HERE_MSGS = {
-    name: f"🟢 {name} {data['ready_msg']}"
-    for name, data in AVATARS.items()
-}
+
+# Initialize dictionaries for O(1) persona-specific property lookups
+SYSTEM_MESSAGES = {}
+AVATAR_ICONS = {}
+AVATAR_PLACEHOLDERS = {}
+AVATAR_THINKING_MSGS = {}
+AVATAR_THINKING_MARKDOWN = {}
+AVATAR_DISPLAY_NAMES = {}
+AVATAR_DESCRIPTIONS = {}
+AVATAR_SUGGESTIONS = {}
+AVATAR_READY_MSGS = {}
+AVATAR_THEME_COLORS = {}
+AVATAR_HERE_MSGS = {}
+
+# Single-pass pre-calculation of avatar properties at module level to reduce interaction overhead
+for name, data in AVATARS.items():
+    icon = data["icon"]
+    ready_msg = data["ready_msg"]
+    thinking_msg = data["thinking_msg"]
+
+    SYSTEM_MESSAGES[name] = ChatMessage(role="system", content=data["system_prompt"])
+    AVATAR_ICONS[name] = icon
+    AVATAR_PLACEHOLDERS[name] = data["chat_placeholder"]
+    AVATAR_THINKING_MSGS[name] = thinking_msg
+    # Pre-calculate markdown thinking state to avoid string slicing and formatting during reruns
+    AVATAR_THINKING_MARKDOWN[name] = f"**{icon} {thinking_msg[2:]}**"
+    AVATAR_DISPLAY_NAMES[name] = f"{icon} {name}"
+    AVATAR_DESCRIPTIONS[name] = data["description"]
+    AVATAR_SUGGESTIONS[name] = data["suggestions"]
+    AVATAR_READY_MSGS[name] = ready_msg
+    AVATAR_THEME_COLORS[name] = data["theme_color"]
+    AVATAR_HERE_MSGS[name] = f"🟢 {name} {ready_msg}"
 
 # Crisis detection keywords and pre-compiled regex for performance
 # Sorted by length (ascending) to improve short-circuiting performance of the any() check
@@ -358,7 +350,6 @@ def main():
 
     # Local references for performance
     messages = state.messages
-    current_selected = state.selected_avatar
 
     # Avatar selection
     selected_avatar = st.sidebar.selectbox(
@@ -390,7 +381,7 @@ def main():
     suggestions = AVATAR_SUGGESTIONS[selected_avatar]
     placeholder = AVATAR_PLACEHOLDERS[selected_avatar]
     description = AVATAR_DESCRIPTIONS[selected_avatar]
-    thinking_msg = f"**{assistant_icon} {AVATAR_THINKING_MSGS[selected_avatar][2:]}**"
+    thinking_msg = AVATAR_THINKING_MARKDOWN[selected_avatar]
     here_msg = AVATAR_HERE_MSGS[selected_avatar]
     system_msg = SYSTEM_MESSAGES[selected_avatar]
 
@@ -478,10 +469,15 @@ def main():
     # Display chat messages from history
     processed_suggestion = None
     for idx, message in enumerate(messages):
-        avatar = assistant_icon if message.role == "assistant" else "👤"
+        # Use robust conditional fallback to avoid KeyError on unexpected roles (e.g., 'system' or 'tool')
+        # while keeping the st.markdown optimization for string content rendering.
         role_label = selected_avatar if message.role == "assistant" else "user"
+        avatar = assistant_icon if message.role == "assistant" else "👤"
+
         with st.chat_message(role_label, avatar=avatar):
-            st.write(message.content)
+            # Switch to st.markdown for string content to bypass Streamlit's internal type-checking.
+            # This improves performance when rendering large conversation histories (up to 50 msgs).
+            st.markdown(message.content)
             # Integrate suggestions into the initial greeting bubble for better visual hierarchy
             if idx == 0 and msg_count == 1:
                 st.caption("✨ Click on a suggestion below or type your own message to start:")
