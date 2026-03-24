@@ -270,6 +270,7 @@ def test_avatars_config_completeness():
     for name, data in AVATARS.items():
         assert "chat_placeholder" in data, f"Avatar {name} is missing chat_placeholder"
         assert len(data["chat_placeholder"]) > 0, f"Avatar {name} has an empty chat_placeholder"
+        assert "theme_color" in data, f"Avatar {name} is missing theme_color"
 
 def test_handle_user_input_history_capping_in_place(mocker):
     # Mock streamlit session state

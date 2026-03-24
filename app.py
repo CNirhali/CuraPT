@@ -103,6 +103,7 @@ def get_mistral_client():
 AVATARS = {
     "Therapist": {
         "icon": "🧘",
+        "theme_color": "green",
         "description": "A compassionate therapist who provides professional guidance and support",
         "thinking_msg": "💭 Reflecting on your words...",
         "chat_placeholder": "What's on your mind?",
@@ -116,6 +117,7 @@ AVATARS = {
     },
     "Life Coach": {
         "icon": "⚡",
+        "theme_color": "orange",
         "description": "An energetic life coach focused on personal growth and achievement",
         "thinking_msg": "💭 Formulating a plan for your growth...",
         "chat_placeholder": "What's your goal for today?",
@@ -129,6 +131,7 @@ AVATARS = {
     },
     "Friend": {
         "icon": "🤗",
+        "theme_color": "blue",
         "description": "A supportive friend who listens and offers understanding",
         "thinking_msg": "💭 Thinking of how to support you...",
         "chat_placeholder": "How are you doing?",
@@ -175,6 +178,10 @@ AVATAR_SUGGESTIONS = {
 }
 AVATAR_READY_MSGS = {
     name: data["ready_msg"]
+    for name, data in AVATARS.items()
+}
+AVATAR_THEME_COLORS = {
+    name: data["theme_color"]
     for name, data in AVATARS.items()
 }
 AVATAR_HERE_MSGS = {
@@ -327,16 +334,22 @@ def get_time_based_greeting():
 
 def main():
     st.title("Mental Health Ease Bot")
-    st.subheader("Your AI companion for mental well-being and personal growth", divider="blue")
+    # Initialize session state first to have access to selected_avatar for the subheader divider
+    state = st.session_state
+    if "selected_avatar" not in state:
+        state.selected_avatar = "Therapist"
+
+    current_selected = state.selected_avatar
+    theme_color = AVATAR_THEME_COLORS.get(current_selected, "blue")
+
+    st.subheader("Your AI companion for mental well-being and personal growth", divider=theme_color)
 
     # Optimization: Use local variables for session state to bypass proxy overhead
-    state = st.session_state
+    # state = st.session_state (already initialized above)
 
     # Initialize session state
     if "messages" not in state:
         state.messages = []
-    if "selected_avatar" not in state:
-        state.selected_avatar = "Therapist"
     if "last_message_time" not in state:
         state.last_message_time = 0
     if "session_start_time" not in state:
@@ -376,7 +389,7 @@ def main():
     suggestions = AVATAR_SUGGESTIONS[selected_avatar]
     placeholder = AVATAR_PLACEHOLDERS[selected_avatar]
     description = AVATAR_DESCRIPTIONS[selected_avatar]
-    thinking_msg = AVATAR_THINKING_MSGS[selected_avatar]
+    thinking_msg = f"**{assistant_icon} {AVATAR_THINKING_MSGS[selected_avatar][2:]}**"
     here_msg = AVATAR_HERE_MSGS[selected_avatar]
     system_msg = SYSTEM_MESSAGES[selected_avatar]
 
@@ -457,7 +470,7 @@ def main():
             - 🔒 **Conversations are confidential** and not stored on our servers permanently.
             - 🔑 Your **Mistral API key** is used only for processing this session.
         """)
-    st.sidebar.caption("Tip: Press **Enter** to send, **Shift+Enter** for new lines.")
+    st.sidebar.caption("Tip: ⌨️ Press **Enter** to send, **Shift+Enter** for new lines.")
 
     st.sidebar.info("⚕️ This bot is **not a replacement** for professional care. If you're in distress, please use the emergency resources below.")
 
@@ -499,7 +512,7 @@ def main():
 
                 with st.chat_message(selected_avatar, avatar=assistant_icon):
                     response_placeholder = st.empty()
-                    response_placeholder.markdown(f"**{thinking_msg}**")
+                    response_placeholder.markdown(thinking_msg)
                     # In modern CPython (3.6+), += string concatenation is optimized for
                     # in-place growth when no other references to the string exist.
                     full_response = ""
@@ -521,7 +534,7 @@ def main():
                             aborted = True
                             break
 
-                        if chunk_count % 5 == 0:
+                        if chunk_count == 1 or chunk_count % 5 == 0:
                             # Sanitize incremental response for safety
                             response_placeholder.markdown(sanitize_error(full_response) + "▌")
 
