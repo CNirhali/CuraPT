@@ -313,7 +313,8 @@ def handle_user_input(prompt, avatar_icon="🧘"):
     if len(st.session_state.messages) > 50:
         del st.session_state.messages[:-50]
 
-    is_crisis = detect_crisis(sanitized_prompt)
+    # Safety: Perform crisis detection on raw prompt to prevent bypass via sanitization (e.g., "secret is suicide")
+    is_crisis = detect_crisis(prompt)
     crisis_text = None
     if is_crisis:
         logger.warning(f"Safety: Crisis detected in user input.")
@@ -540,10 +541,12 @@ def main():
 
                     # Final safety and sanitization check
                     if not aborted:
-                        final_response = sanitize_error(full_response)
-                        if detect_crisis(final_response):
+                        # Safety: check raw response for crisis indicators before sanitization
+                        if detect_crisis(full_response):
                             logger.warning("Safety: Crisis detected in AI response at final check. Redacting.")
                             final_response = CRISIS_FALLBACK
+                        else:
+                            final_response = sanitize_error(full_response)
                     else:
                         final_response = full_response
 
