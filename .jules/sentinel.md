@@ -67,3 +67,8 @@
 **Vulnerability:** API keys containing hyphens or underscores (e.g., Anthropic, OpenAI project keys) were only partially redacted, potentially leaking the remainder of the secret.
 **Learning:** Generic alphanumeric regexes for secrets (like `sk-[a-zA-Z0-9]+`) fail on keys that incorporate hyphens or underscores as separators, leading to insecure partial masking.
 **Prevention:** Ensure secret redaction regexes account for all possible character sets used by providers, including hyphens and underscores, and verify against a diverse set of real-world key formats.
+
+## 2026-03-23 - [Safety Bypass via Secret Sanitization]
+**Vulnerability:** Crisis detection filters can be bypassed if secret sanitization is performed first, as redaction markers can mask safety-critical keywords (e.g., "My secret is suicide" becomes "My secret is [REDACTED]").
+**Learning:** Security and safety layers must be carefully ordered. Sanitization, which purposefully obscures data, should not precede filters that depend on the literal content of that data for threat detection.
+**Prevention:** Always perform safety-critical checks (like crisis detection or content moderation) on the raw, unsanitized text before applying any redaction or transformation layers.
