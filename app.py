@@ -399,7 +399,7 @@ def main():
         st.markdown("---")
 
     # Manage Conversation Popover
-    with st.sidebar.popover(f"⚙️ Manage Conversation ({msg_count} message{'s' if msg_count != 1 else ''})", use_container_width=True):
+    with st.sidebar.popover(f"⚙️ Manage {selected_avatar} Session ({msg_count} message{'s' if msg_count != 1 else ''})", use_container_width=True):
         st.write("Settings for your current chat session.")
         st.caption(f"🕒 Session started at {state.session_start_time.strftime('%H:%M:%S')}")
 
@@ -472,7 +472,7 @@ def main():
         """)
     st.sidebar.caption("Tip: ⌨️ Press **Enter** to send, **Shift+Enter** for new lines.")
 
-    st.sidebar.info("⚕️ This bot is **not a replacement** for professional care. If you're in distress, please use the emergency resources below.")
+    st.sidebar.info("⚕️ This bot is **not a replacement** for professional care. If you're in distress, please use the resources below. They are free, confidential, and available 24/7.")
 
     # Display chat messages from history
     processed_suggestion = None
@@ -562,14 +562,11 @@ def main():
 
     # Sidebar resources
     st.sidebar.markdown("---")
-    st.sidebar.error("""
-        🚨 **Emergency Resources**
-
-        If you're in crisis, please contact:
-        - 📞 **National Suicide Prevention Lifeline**: [Call or Text 988](tel:988)
-        - 💬 **Crisis Text Line**: [Text HOME to 741741](sms:741741)
-        - 🚑 **Emergency Services**: [Call 911](tel:911)
-    """)
+    st.sidebar.error("🚨 **Emergency Resources**")
+    st.sidebar.caption("If you're in crisis, please contact:")
+    st.sidebar.link_button("📞 Call or Text 988", "tel:988", use_container_width=True, help="National Suicide Prevention Lifeline - Free, confidential, 24/7")
+    st.sidebar.link_button("💬 Text HOME to 741741", "sms:741741", use_container_width=True, help="Crisis Text Line - Free, confidential, 24/7")
+    st.sidebar.link_button("🚑 Call 911", "tel:911", use_container_width=True, type="primary", help="Emergency Services - For immediate danger")
 
 if __name__ == "__main__":
     main()
