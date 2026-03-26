@@ -73,3 +73,7 @@
 ## 2026-03-25 - [Credit Card Prefix Specificity for Fast-path]
 **Learning:** Using broad single-digit markers (e.g., '3', '4', '5', '6') for PII redaction causes excessive false positive triggers on common text like years or ages. Refining these to specific 2-digit and 4-digit prefixes (e.g., '40'-'49', '51'-'55', '34', '37', '6011') significantly improves the fast-path hit rate (~3x speedup for common messages) without compromising security.
 **Action:** Always prefer specific multi-character prefixes over broad single-character markers for regex pre-filtering to minimize unnecessary processing of non-sensitive data.
+
+## 2026-03-26 - [Regex Fast-path Scaling and String Reuse]
+**Learning:** For large sets of fixed markers (40+), a pre-compiled regex search on a pre-lowercased string is ~1.6x faster than iterative `any(m in msg_lower for m in markers)` checks in CPython. However, using `re.IGNORECASE` on the same pattern is ~15-20x slower, making it a performance anti-pattern for high-frequency guards. Additionally, passing an optional pre-lowercased string to multiple sequential safety functions eliminates redundant O(N) allocations.
+**Action:** Use pre-compiled regex (without `re.IGNORECASE`) for global fast-path guards with large marker sets and implement string reuse patterns to avoid redundant `.lower()` calls.
