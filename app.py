@@ -32,7 +32,12 @@ SANITIZATION_PATTERNS = [
     (re.compile(r'\bgh[pours]_[a-zA-Z0-9]{36}\b'), '[REDACTED_GITHUB_TOKEN]', ["ghp_", "gho_", "ghu_", "ghr_", "ghs_"]),
     (re.compile(r'\bsk_(?:live|test)_[0-9a-zA-Z]{24}\b'), '[REDACTED_STRIPE_KEY]', ["sk_live", "sk_test"]),
     (re.compile(r'\bxox[bpgrs]-[0-9a-zA-Z]{10,48}\b'), '[REDACTED_SLACK_TOKEN]', ["xoxb-", "xoxp-", "xoxg-", "xoxr-", "xoxs-"]),
-    (re.compile(r'\b(?:4[0-9]{3}|5[1-5][0-9]{2}|6011)(?:[\s-]?[0-9]{4}){3}\b|\b3[47][0-9]{2}[\s-]?[0-9]{6}[\s-]?[0-9]{5}\b'), '[REDACTED_PII]', ["4", "5", "3", "6"]),
+    (re.compile(r'\b(?:4[0-9]{3}|5[1-5][0-9]{2}|6011)(?:[\s-]?[0-9]{4}){3}\b|\b3[47][0-9]{2}[\s-]?[0-9]{6}[\s-]?[0-9]{5}\b'), '[REDACTED_PII]', [
+        "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", # Visa
+        "51", "52", "53", "54", "55",                              # Mastercard
+        "34", "37",                                                # Amex
+        "6011"                                                     # Discover
+    ]),
     (re.compile(r'(?i)Bearer\s+[a-zA-Z0-9._\-\/+=]+'), 'Bearer [REDACTED]', ["bearer"]),
     # Enhanced pattern to handle quoted secrets and preserve original separators
     # Use negative lookahead to avoid re-redacting already masked values
@@ -50,7 +55,10 @@ SENSITIVE_MARKERS = [
     "password", "token", "sk-", "secret", "key:", "key=", "key is", "key ", "passwd", "akia", "asia", "bearer",
     "aiza", "ghp_", "gho_", "ghu_", "ghr_", "ghs_", "sk_live", "sk_test",
     "xoxb-", "xoxp-", "xoxg-", "xoxr-", "xoxs-", "-----begin",
-    "4", "5", "3", "6"
+    "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", # Visa
+    "51", "52", "53", "54", "55",                              # Mastercard
+    "34", "37",                                                # Amex
+    "6011"                                                     # Discover
 ]
 
 def sanitize_error(message):
