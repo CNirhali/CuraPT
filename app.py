@@ -121,6 +121,7 @@ AVATARS = {
         "icon": "🧘",
         "theme_color": "green",
         "description": "A compassionate therapist who provides professional guidance and support",
+        "welcome_greeting": "I'm here to provide a safe space for your thoughts.",
         "thinking_msg": "💭 Reflecting on your words...",
         "chat_placeholder": "What's on your mind?",
         "ready_msg": "is here to support you",
@@ -135,6 +136,7 @@ AVATARS = {
         "icon": "⚡",
         "theme_color": "orange",
         "description": "An energetic life coach focused on personal growth and achievement",
+        "welcome_greeting": "I'm excited to help you reach your full potential today!",
         "thinking_msg": "💭 Formulating a plan for your growth...",
         "chat_placeholder": "What's your goal for today?",
         "ready_msg": "is ready to help you grow",
@@ -149,6 +151,7 @@ AVATARS = {
         "icon": "🤗",
         "theme_color": "blue",
         "description": "A supportive friend who listens and offers understanding",
+        "welcome_greeting": "It's great to see you! I'm all ears.",
         "thinking_msg": "💭 Thinking of how to support you...",
         "chat_placeholder": "How are you doing?",
         "ready_msg": "is here to listen",
@@ -177,6 +180,7 @@ AVATAR_SUGGESTIONS = {}
 AVATAR_READY_MSGS = {}
 AVATAR_THEME_COLORS = {}
 AVATAR_HERE_MSGS = {}
+AVATAR_WELCOME_GREETINGS = {}
 
 # Single-pass pre-calculation of avatar properties at module level to reduce interaction overhead
 for name, data in AVATARS.items():
@@ -196,6 +200,7 @@ for name, data in AVATARS.items():
     AVATAR_READY_MSGS[name] = ready_msg
     AVATAR_THEME_COLORS[name] = data["theme_color"]
     AVATAR_HERE_MSGS[name] = f"🟢 {name} {ready_msg}"
+    AVATAR_WELCOME_GREETINGS[name] = data["welcome_greeting"]
 
 # Crisis detection keywords and pre-compiled regex for performance
 # Sorted by length (ascending) to improve short-circuiting performance of the any() check
@@ -373,6 +378,10 @@ def main():
     # Local references for performance
     messages = state.messages
 
+    # Proactive API key check for better onboarding
+    if not os.getenv("MISTRAL_API_KEY"):
+        st.sidebar.warning("⚠️ **API Key Missing**: Please add your `MISTRAL_API_KEY` to a `.env` file to enable the AI companion.")
+
     # Avatar selection
     selected_avatar = st.sidebar.selectbox(
         "Choose Your Companion",
@@ -392,7 +401,7 @@ def main():
     # Ensure the conversation starts with a persona-specific welcome message
     if not messages:
         greeting = get_time_based_greeting()
-        welcome_msg = f"{greeting}! I'm {selected_avatar}, your companion for today. I'm here to listen and support you. How are you feeling?"
+        welcome_msg = f"{greeting}! I'm {selected_avatar}. {AVATAR_WELCOME_GREETINGS[selected_avatar]} How are you feeling?"
         messages.append(ChatMessage(role="assistant", content=welcome_msg))
 
     # Calculate msg_count after initialization to ensure accurate first-load reporting
@@ -416,6 +425,7 @@ def main():
     with st.sidebar.popover(f"⚙️ Manage {selected_avatar} Session ({msg_count} message{'s' if msg_count != 1 else ''})", use_container_width=True):
         st.write("Settings for your current chat session.")
         st.caption(f"🕒 Session started at {state.session_start_time.strftime('%H:%M:%S')}")
+        st.divider()
 
         # Export History
         if messages:
@@ -457,7 +467,7 @@ def main():
                 data=state.last_export,
                 file_name=f"{selected_avatar.lower().replace(' ', '_')}_chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
                 mime="text/plain",
-                help="Download a copy of your current conversation history.",
+                help="Download a text file containing your conversation history and safety resources.",
                 use_container_width=True
             )
         else:
@@ -467,7 +477,7 @@ def main():
 
         # Clear Chat History with confirmation
         st.write("⚠️ **Destructive Actions**")
-        confirm_clear = st.checkbox("I'm ready for a fresh start", help="Check this to enable the clear button")
+        confirm_clear = st.checkbox("I'm ready for a fresh start", help="Confirm that you want to delete all messages in this session. This cannot be undone.")
         if st.button(f"🗑️ Clear Chat History ({msg_count} message{'s' if msg_count != 1 else ''})",
                      help="Delete all messages and start a new conversation",
                      use_container_width=True,
@@ -493,7 +503,7 @@ def main():
     for idx, message in enumerate(messages):
         # Use robust conditional fallback to avoid KeyError on unexpected roles (e.g., 'system' or 'tool')
         # while keeping the st.markdown optimization for string content rendering.
-        role_label = selected_avatar if message.role == "assistant" else "user"
+        role_label = selected_avatar if message.role == "assistant" else "You"
         avatar = assistant_icon if message.role == "assistant" else "👤"
 
         with st.chat_message(role_label, avatar=avatar):
@@ -519,7 +529,7 @@ def main():
         success, is_crisis, crisis_text, sanitized_prompt = handle_user_input(prompt, avatar_icon=AVATAR_ICONS[selected_avatar])
         if success:
             # Immediate feedback: render sanitized user message
-            with st.chat_message("user", avatar="👤"):
+            with st.chat_message("You", avatar="👤"):
                 st.write(sanitized_prompt)
 
             if is_crisis:
