@@ -77,3 +77,7 @@
 ## 2026-03-26 - [Regex Fast-path Scaling and String Reuse]
 **Learning:** For large sets of fixed markers (40+), a pre-compiled regex search on a pre-lowercased string is ~1.6x faster than iterative `any(m in msg_lower for m in markers)` checks in CPython. However, using `re.IGNORECASE` on the same pattern is ~15-20x slower, making it a performance anti-pattern for high-frequency guards. Additionally, passing an optional pre-lowercased string to multiple sequential safety functions eliminates redundant O(N) allocations.
 **Action:** Use pre-compiled regex (without `re.IGNORECASE`) for global fast-path guards with large marker sets and implement string reuse patterns to avoid redundant `.lower()` calls.
+
+## 2026-03-27 - [Incremental Lowercasing for Streaming Safety]
+**Learning:** In LLM streaming loops where safety or sanitization checks are performed frequently (e.g., every 5 chunks), calling `.lower()` on the entire accumulated response string results in O(N²) complexity for the total response. Maintaining a secondary lowercase string incrementally (`full_response_lower += chunk.lower()`) reduces the total lowercasing overhead to O(N).
+**Action:** Always build lowercase or normalized versions of streamed content incrementally when high-frequency safety checks are required during the streaming process.

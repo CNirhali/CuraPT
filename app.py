@@ -535,6 +535,7 @@ def main():
                     # In modern CPython (3.6+), += string concatenation is optimized for
                     # in-place growth when no other references to the string exist.
                     full_response = ""
+                    full_response_lower = ""
                     # Use token buffering to reduce UI update frequency and websocket traffic
                     chunk_count = 0
                     aborted = False
@@ -542,13 +543,10 @@ def main():
 
                     for response_chunk in get_bot_response(chat_context):
                         full_response += response_chunk
+                        full_response_lower += response_chunk.lower()
                         chunk_count += 1
 
                         if chunk_count == 1 or chunk_count % 5 == 0:
-                            # Optimization: pre-calculate lowercase response once per update cycle
-                            # to avoid redundant O(N) allocations in safety functions.
-                            full_response_lower = full_response.lower()
-
                             # Incremental crisis check for immediate intervention (Defense-in-depth)
                             # Optimization: Check only the last 300 chars to maintain O(N) complexity as response grows.
                             # We batch this with the UI update to reduce safety processing overhead by 80%.
@@ -566,11 +564,11 @@ def main():
                     # Final safety and sanitization check
                     if not aborted:
                         # Safety: check raw response for crisis indicators before sanitization
-                        if detect_crisis(full_response):
+                        if detect_crisis(full_response, msg_lower=full_response_lower):
                             logger.warning("Safety: Crisis detected in AI response at final check. Redacting.")
                             final_response = CRISIS_FALLBACK
                         else:
-                            final_response = sanitize_error(full_response)
+                            final_response = sanitize_error(full_response, msg_lower=full_response_lower)
                     else:
                         final_response = full_response
 
