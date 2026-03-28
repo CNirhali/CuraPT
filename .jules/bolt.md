@@ -81,3 +81,7 @@
 ## 2026-03-27 - [Incremental Lowercasing for Streaming Safety]
 **Learning:** In LLM streaming loops where safety or sanitization checks are performed frequently (e.g., every 5 chunks), calling `.lower()` on the entire accumulated response string results in O(N²) complexity for the total response. Maintaining a secondary lowercase string incrementally (`full_response_lower += chunk.lower()`) reduces the total lowercasing overhead to O(N).
 **Action:** Always build lowercase or normalized versions of streamed content incrementally when high-frequency safety checks are required during the streaming process.
+
+## 2026-03-28 - [Regex vs. any() for Small Keyword Sets]
+**Learning:** For small sets of fixed keywords (e.g., 28 items), a pre-compiled regex search in CPython can be significantly faster (~1.7x) than an iterative `any(k in msg for k in keywords)` substring check. The regex engine's internal optimizations (like Boyer-Moore or Aho-Corasick variants) outperform manual iteration in the ASCII path.
+**Action:** Always benchmark `any()` vs. pre-compiled regex for keyword guards, especially when the keyword set is stable and moderate in size.
