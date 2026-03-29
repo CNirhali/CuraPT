@@ -9,3 +9,7 @@
 ## 2025-05-17 - [Proactive Configuration Feedback & Temporal Context]
 **Learning:** Disabling the chat input with a descriptive placeholder when the system is unconfigured (e.g., missing API key) prevents user frustration by providing clear, immediate guidance. Adding message timestamps (`st.caption`) significantly improves the professional feel and utility of the conversation by providing temporal context for the user's mental health journey.
 **Action:** Always provide specific, actionable feedback for unconfigured app states and implement lightweight metadata support (like timestamps) in chat histories to enhance user engagement.
+
+## 2025-05-18 - [Semantic Hierarchy & Utility-Driven Portability]
+**Learning:** For persistent sidebar sections like 'Emergency Resources', `st.sidebar.subheader` is preferred over `st.sidebar.error` to provide a correct semantic heading level for accessibility while maintaining visual clarity. Leveraging built-in component features, such as the 'Copy to Clipboard' button in `st.code`, provides a frictionless way to add utility (like transcript copying) without custom UI development.
+**Action:** Use subheaders for structural navigation and capitalize on built-in component utilities to enhance user productivity with minimal code overhead.
