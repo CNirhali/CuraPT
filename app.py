@@ -436,7 +436,7 @@ def main():
         st.markdown("---")
 
     # Manage Conversation Popover
-    with st.sidebar.popover(f"⚙️ Manage {selected_avatar} Session ({msg_count} message{'s' if msg_count != 1 else ''})", use_container_width=True):
+    with st.sidebar.popover(f"⚙️ {selected_avatar} Session ({msg_count})", use_container_width=True):
         st.write("Settings for your current chat session.")
         st.caption(f"🕒 Session started at {state.session_start_time.strftime('%H:%M:%S')}")
         st.divider()
@@ -484,6 +484,8 @@ def main():
                 help="Download a text file containing your conversation history and safety resources.",
                 use_container_width=True
             )
+            with st.expander("📋 Copy Transcript"):
+                st.code(state.last_export, language=None)
         else:
             st.info("No messages to export yet.")
 
@@ -560,7 +562,7 @@ def main():
 
             if is_crisis:
                 with st.chat_message(selected_avatar, avatar=assistant_icon):
-                    st.warning(crisis_text)
+                    st.error(crisis_text)
             else:
                 # Generate and stream bot response immediately
                 # Convert message dictionaries to ChatMessage objects for the Mistral API
@@ -624,7 +626,7 @@ def main():
 
     # Sidebar resources
     st.sidebar.markdown("---")
-    st.sidebar.error("🚨 **Emergency Resources**")
+    st.sidebar.subheader("🚨 Emergency Resources")
     st.sidebar.caption("If you're in crisis, please contact:")
     st.sidebar.link_button("📞 Call or Text 988", "tel:988", use_container_width=True, help="National Suicide Prevention Lifeline - Free, confidential, 24/7")
     st.sidebar.link_button("💬 Text HOME to 741741", "sms:741741", use_container_width=True, help="Crisis Text Line - Free, confidential, 24/7")
