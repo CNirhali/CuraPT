@@ -326,8 +326,12 @@ def handle_user_input(prompt, avatar_icon="🧘"):
     # Sanitize user input immediately (Defense-in-depth: prevent secrets from reaching the LLM or session state)
     sanitized_prompt = sanitize_error(prompt, msg_lower=prompt_lower)
 
-    # Add user message to chat as ChatMessage object for performance
-    st.session_state.messages.append(ChatMessage(role="user", content=sanitized_prompt))
+    # Add user message to chat as dictionary to support metadata like timestamps
+    st.session_state.messages.append({
+        "role": "user",
+        "content": sanitized_prompt,
+        "timestamp": datetime.now().strftime("%I:%M %p")
+    })
 
     # History capping for performance and security
     # Optimization: Use in-place deletion to maintain list object identity and reduce memory churn
@@ -340,7 +344,11 @@ def handle_user_input(prompt, avatar_icon="🧘"):
     if is_crisis:
         logger.warning(f"Safety: Crisis detected in user input.")
         crisis_text = get_crisis_response()
-        st.session_state.messages.append(ChatMessage(role="assistant", content=crisis_text))
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": crisis_text,
+            "timestamp": datetime.now().strftime("%I:%M %p")
+        })
 
     return True, is_crisis, crisis_text, sanitized_prompt
 
@@ -404,7 +412,11 @@ def main():
     if not messages:
         greeting = get_time_based_greeting()
         welcome_msg = f"{greeting}! I'm {selected_avatar}. {AVATAR_WELCOME_GREETINGS[selected_avatar]} How are you feeling?"
-        messages.append(ChatMessage(role="assistant", content=welcome_msg))
+        messages.append({
+            "role": "assistant",
+            "content": welcome_msg,
+            "timestamp": datetime.now().strftime("%I:%M %p")
+        })
 
     # Calculate msg_count after initialization to ensure accurate first-load reporting
     msg_count = len(messages)
@@ -448,7 +460,7 @@ def main():
                     "-" * 40 + "\n"
                 ]
                 export_parts.extend(
-                    f"{selected_avatar if msg.role == 'assistant' else 'You'}: {msg.content}\n"
+                    f"[{msg.get('timestamp', 'N/A')}] {selected_avatar if msg['role'] == 'assistant' else 'You'}: {msg['content']}\n"
                     for msg in messages
                 )
                 export_parts.append("\n" + "=" * 40)
@@ -505,13 +517,19 @@ def main():
     for idx, message in enumerate(messages):
         # Use robust conditional fallback to avoid KeyError on unexpected roles (e.g., 'system' or 'tool')
         # while keeping the st.markdown optimization for string content rendering.
-        role_label = selected_avatar if message.role == "assistant" else "You"
-        avatar = assistant_icon if message.role == "assistant" else "👤"
+        role = message["role"]
+        content = message["content"]
+        timestamp = message.get("timestamp", "")
+
+        role_label = selected_avatar if role == "assistant" else "You"
+        avatar = assistant_icon if role == "assistant" else "👤"
 
         with st.chat_message(role_label, avatar=avatar):
             # Switch to st.markdown for string content to bypass Streamlit's internal type-checking.
             # This improves performance when rendering large conversation histories (up to 50 msgs).
-            st.markdown(message.content)
+            st.markdown(content)
+            if timestamp:
+                st.caption(f"🕒 {timestamp}")
             # Integrate suggestions into the initial greeting bubble for better visual hierarchy
             if idx == 0 and msg_count == 1:
                 st.caption("✨ Click on a suggestion below or type your own message to start:")
@@ -522,7 +540,13 @@ def main():
     prompt = processed_suggestion if processed_suggestion else None
 
     # Chat input is always visible at the bottom of the page
-    user_input = st.chat_input(placeholder, max_chars=2000)
+    # Proactive check for API key to disable input if missing
+    api_key_configured = bool(os.getenv("MISTRAL_API_KEY"))
+    user_input = st.chat_input(
+        placeholder if api_key_configured else "Please configure your Mistral API key in the sidebar to start chatting.",
+        max_chars=2000,
+        disabled=not api_key_configured
+    )
     if user_input:
         prompt = user_input
 
@@ -539,7 +563,11 @@ def main():
                     st.warning(crisis_text)
             else:
                 # Generate and stream bot response immediately
-                chat_context = [system_msg] + messages[-10:]
+                # Convert message dictionaries to ChatMessage objects for the Mistral API
+                chat_context = [system_msg] + [
+                    ChatMessage(role=m["role"], content=m["content"])
+                    for m in messages[-10:]
+                ]
 
                 with st.chat_message(selected_avatar, avatar=assistant_icon):
                     response_placeholder = st.empty()
@@ -585,7 +613,11 @@ def main():
                         final_response = full_response
 
                     response_placeholder.markdown(final_response)
-                    messages.append(ChatMessage(role="assistant", content=final_response))
+                    messages.append({
+                        "role": "assistant",
+                        "content": final_response,
+                        "timestamp": datetime.now().strftime("%I:%M %p")
+                    })
 
             # Rerun to clear input and refresh UI state
             st.rerun()
