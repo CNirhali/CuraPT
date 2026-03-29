@@ -85,3 +85,11 @@
 ## 2026-03-28 - [Regex vs. any() for Small Keyword Sets]
 **Learning:** For small sets of fixed keywords (e.g., 28 items), a pre-compiled regex search in CPython can be significantly faster (~1.7x) than an iterative `any(k in msg for k in keywords)` substring check. The regex engine's internal optimizations (like Boyer-Moore or Aho-Corasick variants) outperform manual iteration in the ASCII path.
 **Action:** Always benchmark `any()` vs. pre-compiled regex for keyword guards, especially when the keyword set is stable and moderate in size.
+
+## 2026-03-29 - [Regex Guard vs. any() for Sanitization Loops]
+**Learning:** In a loop performing multiple regex substitutions, replacing Python-level  guards with pre-compiled regex guards () provides a measurable speedup. For small marker sets, it's ~1.2x-1.5x faster; for larger sets (like 18+ credit card prefixes), it can be up to 4x faster by offloading the alternation search to the regex engine's optimized C implementation.
+**Action:** Always prefer pre-compiled regex guards over iterative substring checks for complex sanitization or transformation loops, especially as the number of markers grows.
+
+## 2026-03-29 - [Regex Guard vs. any() for Sanitization Loops]
+**Learning:** In a loop performing multiple regex substitutions, replacing Python-level `any(marker in s for marker in markers)` guards with pre-compiled regex guards (`guard.search(s)`) provides a measurable speedup. For small marker sets, it's ~1.2x-1.5x faster; for larger sets (like 18+ credit card prefixes), it can be up to 4x faster by offloading the alternation search to the regex engine's optimized C implementation.
+**Action:** Always prefer pre-compiled regex guards over iterative substring checks for complex sanitization or transformation loops, especially as the number of markers grows.
