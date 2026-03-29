@@ -46,7 +46,8 @@ class TestSanitizeError(unittest.TestCase):
     def test_sanitize_error_bearer_token(self):
         msg = "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
         sanitized = sanitize_error(msg)
-        self.assertIn("Bearer [REDACTED]", sanitized)
+        # Note: Bearer [REDACTED_JWT] is more specific than Bearer [REDACTED]
+        self.assertIn("Bearer [REDACTED_JWT]", sanitized)
         self.assertNotIn("eyJhbGciOiJIUzI1NiIs", sanitized)
 
     def test_sanitize_error_pii_credit_card(self):

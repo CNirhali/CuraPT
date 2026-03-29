@@ -72,3 +72,8 @@
 **Vulnerability:** Crisis detection filters can be bypassed if secret sanitization is performed first, as redaction markers can mask safety-critical keywords (e.g., "My secret is suicide" becomes "My secret is [REDACTED]").
 **Learning:** Security and safety layers must be carefully ordered. Sanitization, which purposefully obscures data, should not precede filters that depend on the literal content of that data for threat detection.
 **Prevention:** Always perform safety-critical checks (like crisis detection or content moderation) on the raw, unsanitized text before applying any redaction or transformation layers.
+
+## 2026-03-29 - [Enhanced Defense-in-Depth for Modern Secret Formats]
+**Vulnerability:** Potential leakage of modern and high-entropy secrets (GitHub Fine-grained PATs, Stripe Restricted Keys, Google OAuth Secrets, and standalone JWTs) in logs or UI.
+**Learning:** Generic secret patterns (like `sk-...` or `key: ...`) are insufficient for modern token formats that use specific prefixes (e.g., `github_pat_`, `rk_`, `GOCSPX-`) or have recognizable structures (like JWT's `eyJ...`). Furthermore, specific patterns like JWT must be prioritized in the redaction pipeline to ensure precise labeling (e.g., `[REDACTED_JWT]`) before broader patterns (like `Bearer [REDACTED]`) consume them.
+**Prevention:** Maintain a specialized and prioritized list of regex patterns for all known high-risk token formats used by the application and its dependencies. Always synchronize the performance fast-path (`SENSITIVE_MARKERS`) with these new patterns.
