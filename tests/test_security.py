@@ -54,8 +54,8 @@ class TestSecurity(unittest.TestCase):
 
             # Check that the sanitized version is what's stored in history
             self.assertEqual(len(mock_state.messages), 1)
-            self.assertTrue("[REDACTED" in mock_state.messages[0].content)
-            self.assertNotIn(secret_key, mock_state.messages[0].content)
+            self.assertTrue("[REDACTED" in mock_state.messages[0]["content"])
+            self.assertNotIn(secret_key, mock_state.messages[0]["content"])
 
 if __name__ == '__main__':
     unittest.main()
