@@ -25,32 +25,16 @@ st.set_page_config(
 # Includes Mistral keys, AWS, GCP, GitHub, Stripe, Slack tokens, and Private Keys
 # Order matters: Specific patterns should come before generic ones to prevent partial matches
 SANITIZATION_PATTERNS = [
-    (re.compile(r'-----BEGIN (?:[A-Z ]+) KEY-----[\s\S]*?-----END (?:[A-Z ]+) KEY-----'), '[REDACTED_PRIVATE_KEY]', ["-----begin"]),
-    (re.compile(r'\b(AKIA|ASIA)[0-9A-Z]{12,124}\b'), '[REDACTED_AWS_KEY]', ["akia", "asia"]),
-    (re.compile(r'\bsk-[a-zA-Z0-9-_]+\b'), '[REDACTED_API_KEY]', ["sk-"]),
-    (re.compile(r'\bAIza[0-9A-Za-z-_]{35}\b'), '[REDACTED_GCP_KEY]', ["aiza"]),
-    (re.compile(r'\bgithub_pat_[a-zA-Z0-9_]{36,255}\b'), '[REDACTED_GITHUB_TOKEN]', ["github_pat_"]),
-    (re.compile(r'\bgh[pours]_[a-zA-Z0-9]{36}\b'), '[REDACTED_GITHUB_TOKEN]', ["ghp_", "gho_", "ghu_", "ghr_", "ghs_"]),
-    (re.compile(r'\brk_(?:live|test)_[0-9a-zA-Z]{24,99}\b'), '[REDACTED_STRIPE_KEY]', ["rk_live", "rk_test"]),
-    (re.compile(r'\bsk_(?:live|test)_[0-9a-zA-Z]{24}\b'), '[REDACTED_STRIPE_KEY]', ["sk_live", "sk_test"]),
-    (re.compile(r'\bxox[bpgrs]-[0-9a-zA-Z]{10,48}\b'), '[REDACTED_SLACK_TOKEN]', ["xoxb-", "xoxp-", "xoxg-", "xoxr-", "xoxs-"]),
-    (re.compile(r'\bGOCSPX-[a-zA-Z0-9-_]{24,99}\b'), '[REDACTED_GOCSPX]', ["gocspx-"]),
-    (re.compile(r'\b(?:4[0-9]{3}|5[1-5][0-9]{2}|6011)(?:[\s-]?[0-9]{4}){3}\b|\b3[47][0-9]{2}[\s-]?[0-9]{6}[\s-]?[0-9]{5}\b'), '[REDACTED_PII]', [
-        "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", # Visa
-        "51", "52", "53", "54", "55",                              # Mastercard
-        "34", "37",                                                # Amex
-        "6011"                                                     # Discover
-    ]),
-    (re.compile(r'\beyJ[a-zA-Z0-9_\-\/+=]{10,}\.[a-zA-Z0-9_\-\/+=]{10,}\.[a-zA-Z0-9_\-\/+=]{10,}\b'), '[REDACTED_JWT]', ["eyj"]),
-    (re.compile(r'(?i)Bearer\s+[a-zA-Z0-9._\-\/+=]+'), 'Bearer [REDACTED]', ["bearer"]),
     (re.compile(r'-----BEGIN (?:[A-Z ]+) KEY-----[\s\S]*?-----END (?:[A-Z ]+) KEY-----'), '[REDACTED_PRIVATE_KEY]', re.compile(r'-----begin')),
     (re.compile(r'\b(AKIA|ASIA)[0-9A-Z]{12,124}\b'), '[REDACTED_AWS_KEY]', re.compile(r'akia|asia')),
     (re.compile(r'\bsk-[a-zA-Z0-9-_]+\b'), '[REDACTED_API_KEY]', re.compile(r'sk-')),
     (re.compile(r'\bAIza[0-9A-Za-z-_]{35}\b'), '[REDACTED_GCP_KEY]', re.compile(r'aiza')),
-    (re.compile(r'\bgh[pours]_[a-zA-Z0-9]{36}\b'), '[REDACTED_GITHUB_TOKEN]', re.compile(r'ghp_|gho_|ghu_|ghr_|ghs_')),
-    (re.compile(r'\bsk_(?:live|test)_[0-9a-zA-Z]{24}\b'), '[REDACTED_STRIPE_KEY]', re.compile(r'sk_live|sk_test')),
+    (re.compile(r'\b(?:github_pat_[a-zA-Z0-9_]{36,255}|gh[pours]_[a-zA-Z0-9]{36})\b'), '[REDACTED_GITHUB_TOKEN]', re.compile(r'github_pat_|ghp_|gho_|ghu_|ghr_|ghs_')),
+    (re.compile(r'\b(?:rk|sk)_(?:live|test)_[0-9a-zA-Z]{24,99}\b'), '[REDACTED_STRIPE_KEY]', re.compile(r'rk_live|rk_test|sk_live|sk_test')),
     (re.compile(r'\bxox[bpgrs]-[0-9a-zA-Z]{10,48}\b'), '[REDACTED_SLACK_TOKEN]', re.compile(r'xoxb-|xoxp-|xoxg-|xoxr-|xoxs-')),
+    (re.compile(r'\bGOCSPX-[a-zA-Z0-9-_]{24,99}\b'), '[REDACTED_GOCSPX]', re.compile(r'gocspx-')),
     (re.compile(r'\b(?:4[0-9]{3}|5[1-5][0-9]{2}|6011)(?:[\s-]?[0-9]{4}){3}\b|\b3[47][0-9]{2}[\s-]?[0-9]{6}[\s-]?[0-9]{5}\b'), '[REDACTED_PII]', re.compile(r'4[0-9]|5[1-5]|3[47]|6011')),
+    (re.compile(r'\beyJ[a-zA-Z0-9_\-\/+=]{10,}\.[a-zA-Z0-9_\-\/+=]{10,}\.[a-zA-Z0-9_\-\/+=]{10,}\b'), '[REDACTED_JWT]', re.compile(r'eyj')),
     (re.compile(r'(?i)Bearer\s+[a-zA-Z0-9._\-\/+=]+'), 'Bearer [REDACTED]', re.compile(r'bearer')),
     # Enhanced pattern to handle quoted secrets and preserve original separators
     # Use negative lookahead to avoid re-redacting already masked values
@@ -66,8 +50,8 @@ SANITIZATION_PATTERNS = [
 # Redundant 'aws_secret_access_key' removed as it is covered by 'key'.
 SENSITIVE_MARKERS = [
     "password", "token", "sk-", "secret", "key:", "key=", "key is", "key ", "passwd", "akia", "asia", "bearer",
-    "aiza", "github_pat_", "ghp_", "gho_", "ghu_", "ghr_", "ghs_", "rk_", "sk_live", "sk_test",
-    "xoxb-", "xoxp-", "xoxg-", "xoxr-", "xoxs-", "gocspx-", "eyj", "-----begin",
+    "aiza", "github_pat_", "ghp_", "gho_", "ghu_", "ghr_", "ghs_", "rk_live", "rk_test", "sk_live", "sk_test",
+    "xoxb-", "xoxp-", "xoxg-", "xoxr-", "xoxs-", "gocspx-", "eyj", "-----begin", "api_key", "aws_secret_access_key",
     "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", # Visa
     "51", "52", "53", "54", "55",                              # Mastercard
     "34", "37",                                                # Amex
