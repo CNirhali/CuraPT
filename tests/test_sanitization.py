@@ -75,5 +75,18 @@ class TestSanitizeError(unittest.TestCase):
             self.assertIn("[REDACTED_API_KEY]", sanitized)
             self.assertNotIn(key, sanitized)
 
+    def test_sanitize_error_quoted_json_identifiers(self):
+        # Regression tests for quoted keys and passwords (e.g., in JSON or structured logs)
+        test_cases = [
+            ('{"key": "secret"}', '{"key": [REDACTED]}'),
+            ('{"password": "abc"}', '{"password": [REDACTED]}'),
+            ("'token': 'xyz'", "'token': [REDACTED]"),
+            ('password="123"', 'password=[REDACTED]'),
+            ('"secret" : "my-hidden-val"', '"secret" : [REDACTED]')
+        ]
+        for input_str, expected in test_cases:
+            result = sanitize_error(input_str)
+            self.assertEqual(result, expected, f"Failed for input: {input_str}")
+
 if __name__ == '__main__':
     unittest.main()

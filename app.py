@@ -38,9 +38,10 @@ SANITIZATION_PATTERNS = [
     (re.compile(r'(?i)Bearer\s+[a-zA-Z0-9._\-\/+=]+'), 'Bearer [REDACTED]', re.compile(r'bearer')),
     # Enhanced pattern to handle quoted secrets and preserve original separators
     # Use negative lookahead to avoid re-redacting already masked values
-    (re.compile(r'(?i)\b(password|passwd|secret|token|api_key|aws_secret_access_key)(\s*(?:[:=]|is)\s*)(?!\[REDACTED)(?:"[^"]*"|\'[^\']*\'|[^\s,;]+)'), r'\1\2[REDACTED]', re.compile(r'password|passwd|secret|token|api_key|aws_secret_access_key')),
+    # Supports optional quotes around identifiers (e.g., {"password": "..."}) using backreferences
+    (re.compile(r'(?i)(["\']?)\b(password|passwd|secret|token|api_key|aws_secret_access_key)\1(\s*(?:[:=]|is)\s*)(?!\[REDACTED)(?:"[^"]*"|\'[^\']*\'|[^\s,;]+)'), r'\1\2\1\3[REDACTED]', re.compile(r'password|passwd|secret|token|api_key|aws_secret_access_key')),
     # Generic 'key' pattern is last and avoids matching PEM headers via negative lookahead
-    (re.compile(r'(?i)\b(key)(\s*(?:[:=]|is)\s*)(?!\[REDACTED|---)(?:"[^"]*"|\'[^\']*\'|[^\s,;]+)'), r'\1\2[REDACTED]', re.compile(r'key:|key=|key is|key '))
+    (re.compile(r'(?i)(["\']?)\b(key)\1(\s*(?:[:=]|is)\s*)(?!\[REDACTED|---)(?:"[^"]*"|\'[^\']*\'|[^\s,;]+)'), r'\1\2\1\3[REDACTED]', re.compile(r'key:|key=|key is|key |"key":|\'key\':')),
 ]
 # Optimization: Substring markers to trigger expensive regex execution
 # Refinement: replaced 'pass' with 'password'/'passwd' to avoid false positives on 'compassion'
