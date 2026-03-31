@@ -82,3 +82,8 @@
 **Vulnerability:** Information leakage in structured logs or JSON data where sensitive keys (e.g., `"password"`, `"key"`) were not redacted because they were enclosed in quotes.
 **Learning:** Generic secret redaction patterns must account for structured data formats where identifiers are frequently quoted. Simple word-boundary checks (`\bkey\b`) might match the name but fail if the name is wrapped in delimiters like `"` or `'`. Using backreferences in regex allows for matching balanced quotes around an identifier. Additionally, performance guards must be explicitly updated to include these quoted variants to ensure the redaction logic is triggered.
 **Prevention:** Use advanced regex patterns that support optional, balanced delimiters for all generic secret identifiers. Ensure that individual regex guards in the sanitization pipeline are also updated to trigger on these delimited variants.
+
+## 2026-04-05 - [Homoglyph-based Redaction Bypass in sanitize_error]
+**Vulnerability:** Redaction of secrets (API keys, passwords) could be bypassed by using homoglyphs (lookalike characters from different alphabets) in the surrounding keywords (e.g., "pаssword" using Cyrillic 'а').
+**Learning:** Security filters that depend on specific keywords are vulnerable to Unicode obfuscation. Normalization must be applied to all security-critical string processing layers, not just safety filters like crisis detection.
+**Prevention:** Apply canonical normalization (NFKC) and homoglyph mapping to all text before performing security-sensitive pattern matching or redaction. ensure a unified mapping is used across the codebase.

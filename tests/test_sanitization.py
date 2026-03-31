@@ -88,5 +88,18 @@ class TestSanitizeError(unittest.TestCase):
             result = sanitize_error(input_str)
             self.assertEqual(result, expected, f"Failed for input: {input_str}")
 
+    def test_sanitize_error_homoglyph_bypass(self):
+        # 'а' is Cyrillic homoglyph for 'a', 'е' is Cyrillic homoglyph for 'e'
+        # 'і' is Cyrillic homoglyph for 'i', 'о' is Cyrillic homoglyph for 'o'
+        test_cases = [
+            ("My pаssword: hidden123", "My password: [REDACTED]"),
+            ("The sеcrеt is 'my-val'", "The secret is [REDACTED]"),
+            ("apі_kеy: token123", "api_key: [REDACTED]"),
+            ("My kеy is sk-12345", "My key is [REDACTED_API_KEY]")
+        ]
+        for input_str, expected in test_cases:
+            result = sanitize_error(input_str)
+            self.assertEqual(result, expected, f"Failed for homoglyph input: {input_str}")
+
 if __name__ == '__main__':
     unittest.main()

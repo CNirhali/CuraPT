@@ -62,6 +62,13 @@ SENSITIVE_MARKERS = [
 # Benchmarks show this is ~1.6x faster than any() with 43 markers for clean messages.
 SENSITIVE_FAST_RE = re.compile('|'.join(map(re.escape, SENSITIVE_MARKERS)))
 
+# Common Latin-lookalike homoglyphs (e.g., Cyrillic, Greek) for normalization
+# Moved to module level for use in both sanitize_error and detect_crisis
+_HOMOGLYPH_MAP = str.maketrans(
+    'аеіорсхуіј',  # Lookalikes
+    'aeiopcxyij'   # Latin equivalents
+)
+
 def sanitize_error(message, msg_lower=None):
     """
     Redact sensitive information like API keys, passwords, and tokens from strings.
@@ -76,6 +83,12 @@ def sanitize_error(message, msg_lower=None):
     # Optimization: return early for short messages (shortest marker "sk-" is 3 chars)
     if len(message) < 3:
         return message
+
+    # Defense-in-depth: Normalize NFKC and apply homoglyph mapping for non-ASCII messages
+    # to prevent bypasses using lookalike characters (e.g., Cyrillic 'а' in "password").
+    if not message.isascii():
+        message = unicodedata.normalize('NFKC', message).translate(_HOMOGLYPH_MAP)
+        msg_lower = None # Force recalculation after normalization
 
     # Optimization: return early for messages without sensitive markers (approx. 30-40% faster than any())
     # We use the pre-compiled SENSITIVE_FAST_RE for the global check.
@@ -218,12 +231,6 @@ CRISIS_KEYWORDS_LOWER = [k.lower() for k in CRISIS_KEYWORDS]
 CRISIS_PATTERN = re.compile(r'\b(?:' + r'|'.join(map(re.escape, CRISIS_KEYWORDS_LOWER)) + r')\b')
 # Shortest crisis keywords like "suicide" or "kill me" are 7 characters long
 MIN_CRISIS_KEYWORD_LEN = 7
-
-# Common Latin-lookalike homoglyphs (e.g., Cyrillic, Greek) for normalization
-_HOMOGLYPH_MAP = str.maketrans(
-    'аеіорсхуіј',  # Lookalikes
-    'aeiopcxyij'   # Latin equivalents
-)
 
 def detect_crisis(message, msg_lower=None):
     """
