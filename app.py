@@ -395,7 +395,7 @@ def main():
 
     # Proactive API key check for better onboarding
     if not os.getenv("MISTRAL_API_KEY"):
-        st.sidebar.warning("⚠️ **API Key Missing**: Please add your `MISTRAL_API_KEY` to a `.env` file to enable the AI companion.")
+        st.sidebar.warning("⚠️ **API Key Missing**: Please add your `MISTRAL_API_KEY` to a `.env` file to enable the AI companion. You can get one at [console.mistral.ai](https://console.mistral.ai/).")
 
     # Avatar selection
     selected_avatar = st.sidebar.selectbox(
@@ -536,7 +536,7 @@ def main():
             # This improves performance when rendering large conversation histories (up to 50 msgs).
             st.markdown(content)
             if timestamp:
-                st.caption(f"🕒 {timestamp}")
+                st.caption(f"🕒 Sent at {timestamp}")
             # Integrate suggestions into the initial greeting bubble for better visual hierarchy
             if idx == 0 and msg_count == 1:
                 st.caption("✨ Click on a suggestion below or type your own message to start:")
@@ -632,7 +632,7 @@ def main():
     # Sidebar resources
     st.sidebar.markdown("---")
     st.sidebar.subheader("🚨 Emergency Resources")
-    st.sidebar.caption("If you're in crisis, please contact:")
+    st.sidebar.caption("If you're in crisis, please contact these services. They are free, confidential, and available 24/7:")
     st.sidebar.link_button("📞 Call or Text 988", "tel:988", use_container_width=True, help="National Suicide Prevention Lifeline - Free, confidential, 24/7")
     st.sidebar.link_button("💬 Text HOME to 741741", "sms:741741", use_container_width=True, help="Crisis Text Line - Free, confidential, 24/7")
     st.sidebar.link_button("🚑 Call 911", "tel:911", use_container_width=True, type="primary", help="Emergency Services - For immediate danger")
