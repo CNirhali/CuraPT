@@ -179,39 +179,29 @@ AVATARS = {
 AVATAR_OPTIONS = list(AVATARS.keys())
 AVATAR_INDEX = {name: i for i, name in enumerate(AVATAR_OPTIONS)}
 
-# Initialize dictionaries for O(1) persona-specific property lookups
-SYSTEM_MESSAGES = {}
-AVATAR_ICONS = {}
-AVATAR_PLACEHOLDERS = {}
-AVATAR_THINKING_MSGS = {}
-AVATAR_THINKING_MARKDOWN = {}
-AVATAR_DISPLAY_NAMES = {}
-AVATAR_DESCRIPTIONS = {}
-AVATAR_SUGGESTIONS = {}
-AVATAR_READY_MSGS = {}
-AVATAR_THEME_COLORS = {}
-AVATAR_HERE_MSGS = {}
-AVATAR_WELCOME_GREETINGS = {}
-
-# Single-pass pre-calculation of avatar properties at module level to reduce interaction overhead
+# Pre-calculate persona properties at module level to reduce interaction overhead.
+# Consolidating these into a single dictionary reduces lookups in main() from 11 down to 1.
+PERSONA_DATA = {}
 for name, data in AVATARS.items():
     icon = data["icon"]
     ready_msg = data["ready_msg"]
     thinking_msg = data["thinking_msg"]
 
-    SYSTEM_MESSAGES[name] = ChatMessage(role="system", content=data["system_prompt"])
-    AVATAR_ICONS[name] = icon
-    AVATAR_PLACEHOLDERS[name] = data["chat_placeholder"]
-    AVATAR_THINKING_MSGS[name] = thinking_msg
-    # Pre-calculate markdown thinking state to avoid string slicing and formatting during reruns
-    AVATAR_THINKING_MARKDOWN[name] = f"**{icon} {thinking_msg[2:]}**"
-    AVATAR_DISPLAY_NAMES[name] = f"{icon} {name}"
-    AVATAR_DESCRIPTIONS[name] = data["description"]
-    AVATAR_SUGGESTIONS[name] = data["suggestions"]
-    AVATAR_READY_MSGS[name] = ready_msg
-    AVATAR_THEME_COLORS[name] = data["theme_color"]
-    AVATAR_HERE_MSGS[name] = f"🟢 {name} {ready_msg}"
-    AVATAR_WELCOME_GREETINGS[name] = data["welcome_greeting"]
+    PERSONA_DATA[name] = {
+        "system_msg": ChatMessage(role="system", content=data["system_prompt"]),
+        "icon": icon,
+        "placeholder": data["chat_placeholder"],
+        "thinking_msg": thinking_msg,
+        # Pre-calculate markdown thinking state to avoid string slicing and formatting during reruns
+        "thinking_markdown": f"**{icon} {thinking_msg[2:]}**",
+        "display_name": f"{icon} {name}",
+        "description": data["description"],
+        "suggestions": data["suggestions"],
+        "ready_msg": ready_msg,
+        "theme_color": data["theme_color"],
+        "here_msg": f"🟢 {name} {ready_msg}",
+        "welcome_greeting": data["welcome_greeting"]
+    }
 
 # Crisis detection keywords and pre-compiled regex for performance
 # Sorted by length (ascending) to improve short-circuiting performance of the any() check
@@ -312,18 +302,21 @@ def get_bot_response(messages):
 
 def handle_user_input(prompt, avatar_icon="🧘"):
     """Update state with user input and check for crisis. Returns (success, is_crisis, crisis_text, sanitized_prompt)."""
+    # Optimization: Use local variable for session state to minimize proxy overhead.
+    state = st.session_state
+
     # Server-side length validation as defense-in-depth against resource exhaustion
     if len(prompt) > 2000:
         st.toast("Your message is a bit too long. Please try to shorten it.", icon="⚠️")
         return False, False, None, prompt
 
     current_time = time.time()
-    time_since_last = current_time - st.session_state.get("last_message_time", 0)
+    time_since_last = current_time - state.get("last_message_time", 0)
     if time_since_last < 2.0:
         st.toast(f"Take a breath! Please wait {2.0 - time_since_last:.1f}s", icon=avatar_icon)
         return False, False, None, prompt
 
-    st.session_state.last_message_time = current_time
+    state.last_message_time = current_time
 
     # Optimization: pre-calculate lowercase prompt once for both safety functions
     prompt_lower = prompt.lower()
@@ -331,17 +324,21 @@ def handle_user_input(prompt, avatar_icon="🧘"):
     # Sanitize user input immediately (Defense-in-depth: prevent secrets from reaching the LLM or session state)
     sanitized_prompt = sanitize_error(prompt, msg_lower=prompt_lower)
 
+    # Reuse a single timestamp string for multiple message entries (if applicable)
+    timestamp = datetime.now().strftime("%I:%M %p")
+    messages = state.messages
+
     # Add user message to chat as dictionary to support metadata like timestamps
-    st.session_state.messages.append({
+    messages.append({
         "role": "user",
         "content": sanitized_prompt,
-        "timestamp": datetime.now().strftime("%I:%M %p")
+        "timestamp": timestamp
     })
 
     # History capping for performance and security
     # Optimization: Use in-place deletion to maintain list object identity and reduce memory churn
-    if len(st.session_state.messages) > 50:
-        del st.session_state.messages[:-50]
+    if len(messages) > 50:
+        del messages[:-50]
 
     # Safety: Perform crisis detection on raw prompt to prevent bypass via sanitization (e.g., "secret is suicide")
     is_crisis = detect_crisis(prompt, msg_lower=prompt_lower)
@@ -349,10 +346,10 @@ def handle_user_input(prompt, avatar_icon="🧘"):
     if is_crisis:
         logger.warning(f"Safety: Crisis detected in user input.")
         crisis_text = get_crisis_response()
-        st.session_state.messages.append({
+        messages.append({
             "role": "assistant",
             "content": crisis_text,
-            "timestamp": datetime.now().strftime("%I:%M %p")
+            "timestamp": timestamp
         })
 
     return True, is_crisis, crisis_text, sanitized_prompt
@@ -385,18 +382,20 @@ def confirm_clear_dialog():
 
 def main():
     st.title("Mental Health Ease Bot")
-    # Initialize session state first to have access to selected_avatar for the subheader divider
+    # Optimization: Use local variables for session state and environment to bypass proxy/OS overhead.
     state = st.session_state
+    api_key = os.getenv("MISTRAL_API_KEY")
+
+    # Initialize session state first to have access to selected_avatar for the subheader divider
     if "selected_avatar" not in state:
         state.selected_avatar = "Therapist"
 
     current_selected = state.selected_avatar
-    theme_color = AVATAR_THEME_COLORS.get(current_selected, "blue")
+    # Single lookup for all persona properties
+    persona = PERSONA_DATA[current_selected]
+    theme_color = persona["theme_color"]
 
     st.subheader("Your AI companion for mental well-being and personal growth", divider=theme_color)
-
-    # Optimization: Use local variables for session state to bypass proxy overhead
-    # state = st.session_state (already initialized above)
 
     # Initialize session state
     if "messages" not in state:
@@ -410,7 +409,7 @@ def main():
     messages = state.messages
 
     # Proactive API key check for better onboarding
-    if not os.getenv("MISTRAL_API_KEY"):
+    if not api_key:
         st.sidebar.warning("⚠️ **API Key Missing**: Please add your `MISTRAL_API_KEY` to a `.env` file to enable the AI companion. You can get one at [console.mistral.ai](https://console.mistral.ai/).")
 
     # Avatar selection
@@ -418,7 +417,7 @@ def main():
         "Choose Your Companion",
         AVATAR_OPTIONS,
         index=AVATAR_INDEX[current_selected],
-        format_func=AVATAR_DISPLAY_NAMES.get,
+        format_func=lambda x: PERSONA_DATA[x]["display_name"],
         help="Switching your companion will reset the current conversation. Consider exporting your chat first if you'd like to save it."
     )
     
@@ -427,12 +426,15 @@ def main():
         state.messages = []
         # Update local references after state change
         messages = state.messages
-        st.toast(f"{selected_avatar} {AVATAR_READY_MSGS[selected_avatar]}", icon=AVATAR_ICONS[selected_avatar])
+        new_persona = PERSONA_DATA[selected_avatar]
+        st.toast(f"{selected_avatar} {new_persona['ready_msg']}", icon=new_persona["icon"])
+        # Refresh persona reference
+        persona = new_persona
 
     # Ensure the conversation starts with a persona-specific welcome message
     if not messages:
         greeting = get_time_based_greeting()
-        welcome_msg = f"{greeting}! I'm {selected_avatar}. {AVATAR_WELCOME_GREETINGS[selected_avatar]} How are you feeling?"
+        welcome_msg = f"{greeting}! I'm {selected_avatar}. {persona['welcome_greeting']} How are you feeling?"
         messages.append({
             "role": "assistant",
             "content": welcome_msg,
@@ -442,14 +444,14 @@ def main():
     # Calculate msg_count after initialization to ensure accurate first-load reporting
     msg_count = len(messages)
 
-    # Optimization: Pre-fetch persona-specific constants to avoid redundant lookups in UI rendering
-    assistant_icon = AVATAR_ICONS[selected_avatar]
-    suggestions = AVATAR_SUGGESTIONS[selected_avatar]
-    placeholder = AVATAR_PLACEHOLDERS[selected_avatar]
-    description = AVATAR_DESCRIPTIONS[selected_avatar]
-    thinking_msg = AVATAR_THINKING_MARKDOWN[selected_avatar]
-    here_msg = AVATAR_HERE_MSGS[selected_avatar]
-    system_msg = SYSTEM_MESSAGES[selected_avatar]
+    # Pre-fetch localized persona-specific constants from the pre-calculated dictionary
+    assistant_icon = persona["icon"]
+    suggestions = persona["suggestions"]
+    placeholder = persona["placeholder"]
+    description = persona["description"]
+    thinking_msg = persona["thinking_markdown"]
+    here_msg = persona["here_msg"]
+    system_msg = persona["system_msg"]
 
     with st.sidebar:
         st.write(description)
@@ -529,17 +531,21 @@ def main():
 
     st.sidebar.info("⚕️ This bot is **not a replacement** for professional care. If you're in distress, please use the resources below. They are free, confidential, and available 24/7.")
 
+    # Pre-calculate role-to-label and role-to-avatar mappings outside the rendering loop.
+    # This reduces conditional logic overhead during reruns, especially as history grows.
+    role_labels = {"assistant": selected_avatar, "user": "You"}
+    role_icons = {"assistant": assistant_icon, "user": "👤"}
+
     # Display chat messages from history
     processed_suggestion = None
     for idx, message in enumerate(messages):
-        # Use robust conditional fallback to avoid KeyError on unexpected roles (e.g., 'system' or 'tool')
-        # while keeping the st.markdown optimization for string content rendering.
+        # Optimization: use dictionary lookups instead of multiple if/else branches
         role = message["role"]
         content = message["content"]
         timestamp = message.get("timestamp", "")
 
-        role_label = selected_avatar if role == "assistant" else "You"
-        avatar = assistant_icon if role == "assistant" else "👤"
+        role_label = role_labels.get(role, role)
+        avatar = role_icons.get(role, "👤")
 
         with st.chat_message(role_label, avatar=avatar):
             # Switch to st.markdown for string content to bypass Streamlit's internal type-checking.
@@ -569,7 +575,7 @@ def main():
 
     # Message processing
     if prompt:
-        success, is_crisis, crisis_text, sanitized_prompt = handle_user_input(prompt, avatar_icon=AVATAR_ICONS[selected_avatar])
+        success, is_crisis, crisis_text, sanitized_prompt = handle_user_input(prompt, avatar_icon=assistant_icon)
         if success:
             # Immediate feedback: render sanitized user message
             with st.chat_message("You", avatar="👤"):
