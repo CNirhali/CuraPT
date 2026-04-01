@@ -13,3 +13,7 @@
 ## 2025-05-18 - [Semantic Hierarchy & Utility-Driven Portability]
 **Learning:** For persistent sidebar sections like 'Emergency Resources', `st.sidebar.subheader` is preferred over `st.sidebar.error` to provide a correct semantic heading level for accessibility while maintaining visual clarity. Leveraging built-in component features, such as the 'Copy to Clipboard' button in `st.code`, provides a frictionless way to add utility (like transcript copying) without custom UI development.
 **Action:** Use subheaders for structural navigation and capitalize on built-in component utilities to enhance user productivity with minimal code overhead.
+
+## 2025-05-19 - [Dialog-Based Destructive Action Confirmation]
+**Learning:** Replacing inline confirmation mechanisms (like checkboxes) with modal dialogs (@st.dialog) for destructive actions (e.g., clearing chat history) creates a more intentional and focused user experience. It reduces UI clutter in secondary menus and provides a clear, isolated context for the user to confirm their decision.
+**Action:** Use @st.dialog for irreversible or significant destructive operations to ensure user intentionality and maintain a clean primary interface.

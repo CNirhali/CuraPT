@@ -367,6 +367,22 @@ def get_time_based_greeting():
     else:
         return "Good evening"
 
+@st.dialog("Clear Conversation History")
+def confirm_clear_dialog():
+    """Provide a modal confirmation for deleting conversation history."""
+    st.warning("Are you sure you want to clear your entire conversation history? This action cannot be undone.")
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Cancel", use_container_width=True):
+            st.rerun()
+    with col2:
+        if st.button("Yes, Clear History", type="primary", use_container_width=True):
+            st.session_state.messages = []
+            # Reset session start time for fresh conversation
+            st.session_state.session_start_time = datetime.now()
+            st.toast("Conversation cleared 🌱")
+            st.rerun()
+
 def main():
     st.title("Mental Health Ease Bot")
     # Initialize session state first to have access to selected_avatar for the subheader divider
@@ -496,19 +512,13 @@ def main():
 
         st.markdown("---")
 
-        # Clear Chat History with confirmation
+        # Clear Chat History with confirmation dialog
         st.write("⚠️ **Destructive Actions**")
-        confirm_clear = st.checkbox("I'm ready for a fresh start", help="Confirm that you want to delete all messages in this session. This cannot be undone.")
         if st.button(f"🗑️ Clear Chat History ({msg_count} message{'s' if msg_count != 1 else ''})",
-                     help="Delete all messages and start a new conversation",
+                     help="Open a confirmation dialog to delete all messages",
                      use_container_width=True,
-                     disabled=not confirm_clear,
-                     type="primary" if confirm_clear else "secondary"):
-            state.messages = []
-            # Reset session start time for fresh conversation
-            state.session_start_time = datetime.now()
-            st.toast("Conversation cleared 🌱")
-            st.rerun()
+                     type="secondary"):
+            confirm_clear_dialog()
 
     with st.sidebar.expander("🛡️ Privacy & Safety"):
         st.write("""
