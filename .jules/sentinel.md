@@ -87,3 +87,8 @@
 **Vulnerability:** Redaction of secrets (API keys, passwords) could be bypassed by using homoglyphs (lookalike characters from different alphabets) in the surrounding keywords (e.g., "pаssword" using Cyrillic 'а').
 **Learning:** Security filters that depend on specific keywords are vulnerable to Unicode obfuscation. Normalization must be applied to all security-critical string processing layers, not just safety filters like crisis detection.
 **Prevention:** Apply canonical normalization (NFKC) and homoglyph mapping to all text before performing security-sensitive pattern matching or redaction. ensure a unified mapping is used across the codebase.
+
+## 2026-04-02 - [Sanitization Bypass via Invisible Characters]
+**Vulnerability:** Redaction and crisis detection filters could be bypassed by inserting non-printing characters (e.g., zero-width space \u200B, ZWNJ \u200C) between characters of a sensitive token or keyword.
+**Learning:** Regex-based filters are easily defeated by characters that are invisible to the user but significant to the regex engine. Stripping these characters *before* pattern matching is essential for robust filtering.
+**Prevention:** Use a pre-compiled regex to strip all known zero-width and invisible characters (\u200B, \u200C, \u200D, \uFEFF) during the normalization phase of security filters.

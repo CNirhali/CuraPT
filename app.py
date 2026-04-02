@@ -63,11 +63,15 @@ SENSITIVE_MARKERS = [
 SENSITIVE_FAST_RE = re.compile('|'.join(map(re.escape, SENSITIVE_MARKERS)))
 
 # Common Latin-lookalike homoglyphs (e.g., Cyrillic, Greek) for normalization
+# Expanded to include more comprehensive Cyrillic and Greek lookalikes
 # Moved to module level for use in both sanitize_error and detect_crisis
 _HOMOGLYPH_MAP = str.maketrans(
-    'аеіорсхуіј',  # Lookalikes
-    'aeiopcxyij'   # Latin equivalents
+    'аеіорсхујкмнзαεηικνρστυ',  # Lookalikes
+    'aeiopcxyjkmnzaenikvpsty'   # Latin equivalents
 )
+
+# Common invisible/zero-width characters used for obfuscation (OWASP A03:2021)
+_INVISIBLE_CHARS_RE = re.compile(r'[\u200B\u200C\u200D\uFEFF]')
 
 def sanitize_error(message, msg_lower=None):
     """
@@ -86,8 +90,11 @@ def sanitize_error(message, msg_lower=None):
 
     # Defense-in-depth: Normalize NFKC and apply homoglyph mapping for non-ASCII messages
     # to prevent bypasses using lookalike characters (e.g., Cyrillic 'а' in "password").
-    if not message.isascii():
+    # Also strip common invisible characters used for obfuscation.
+    if not message.isascii() or _INVISIBLE_CHARS_RE.search(message):
         message = unicodedata.normalize('NFKC', message).translate(_HOMOGLYPH_MAP)
+        # Strip common invisible/zero-width characters before sanitization
+        message = _INVISIBLE_CHARS_RE.sub('', message)
         msg_lower = None # Force recalculation after normalization
 
     # Optimization: return early for messages without sensitive markers (approx. 30-40% faster than any())
@@ -244,13 +251,15 @@ def detect_crisis(message, msg_lower=None):
         # is significantly faster (~1.7x) than an iterative any() substring check in CPython.
         return bool(CRISIS_PATTERN.search(msg_lower))
 
-    # Slow-path for non-ASCII messages (handles homoglyph obfuscation)
+    # Slow-path for non-ASCII messages or messages with invisible characters (handles homoglyph obfuscation)
     # Check original first to catch common keywords immediately
     if CRISIS_PATTERN.search(msg_lower):
         return True
 
     # Normalize NFKC and apply manual homoglyph mapping for defense-in-depth
-    normalized = unicodedata.normalize('NFKC', msg_lower).translate(_HOMOGLYPH_MAP)
+    # Also strip common invisible characters used for obfuscation
+    normalized = _INVISIBLE_CHARS_RE.sub('', msg_lower)
+    normalized = unicodedata.normalize('NFKC', normalized).translate(_HOMOGLYPH_MAP)
     return bool(CRISIS_PATTERN.search(normalized))
 
 def get_crisis_response():
