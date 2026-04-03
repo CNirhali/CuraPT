@@ -73,13 +73,13 @@ _HOMOGLYPH_MAP = str.maketrans(
 # Common invisible/zero-width characters used for obfuscation (OWASP A03:2021)
 _INVISIBLE_CHARS_RE = re.compile(r'[\u200B\u200C\u200D\uFEFF]')
 
-def sanitize_error(message, msg_lower=None):
+def sanitize_error(message, msg_lower=None, is_ascii=None):
     """
     Redact sensitive information like API keys, passwords, and tokens from strings.
     This provides defense-in-depth by preventing secrets from being displayed in the UI,
     stored in session history, or sent to external providers.
 
-    msg_lower can be provided to bypass redundant .lower() calls in high-frequency loops.
+    msg_lower and is_ascii can be provided to bypass redundant O(N) calls in high-frequency loops.
     """
     if not isinstance(message, str):
         message = str(message)
@@ -91,11 +91,14 @@ def sanitize_error(message, msg_lower=None):
     # Defense-in-depth: Normalize NFKC and apply homoglyph mapping for non-ASCII messages
     # to prevent bypasses using lookalike characters (e.g., Cyrillic 'а' in "password").
     # Optimization: All _INVISIBLE_CHARS_RE are non-ASCII, so isascii() guard is sufficient.
-    if not message.isascii():
+    if is_ascii is None:
+        is_ascii = message.isascii()
+
+    if not is_ascii:
         normalized = unicodedata.normalize('NFKC', message).translate(_HOMOGLYPH_MAP)
-        # Strip common invisible/zero-width characters before sanitization
-        if _INVISIBLE_CHARS_RE.search(normalized):
-            normalized = _INVISIBLE_CHARS_RE.sub('', normalized)
+        # Strip common invisible/zero-width characters before sanitization.
+        # re.sub() is optimized to return the original object if no match is found.
+        normalized = _INVISIBLE_CHARS_RE.sub('', normalized)
 
         # Optimization: Only reset msg_lower if the message actually changed after normalization.
         # This preserves the incremental lowercase string provided during streaming if no obfuscation is found.
@@ -238,12 +241,12 @@ CRISIS_PATTERN = re.compile(r'\b(?:' + r'|'.join(map(re.escape, CRISIS_KEYWORDS_
 # Shortest crisis keywords like "suicide" or "kill me" are 7 characters long
 MIN_CRISIS_KEYWORD_LEN = 7
 
-def detect_crisis(message, msg_lower=None, pos=0):
+def detect_crisis(message, msg_lower=None, pos=0, is_ascii=None):
     """
     Detect if the message indicates a crisis situation using regex.
     Includes normalization for homoglyphs and NFKC for robustness against obfuscation.
 
-    msg_lower can be provided to bypass redundant .lower() calls.
+    msg_lower and is_ascii can be provided to bypass redundant O(N) calls.
     pos can be used to search only from a specific offset (e.g. for streaming efficiency).
     """
     # Optimization: return False immediately for very short, safe inputs to avoid string processing
@@ -254,25 +257,27 @@ def detect_crisis(message, msg_lower=None, pos=0):
     # Optimization: O(N) fast-path using isascii() and substring check.
     # We prioritize ASCII messages as they are the most common and don't require normalization.
     # Note: isascii() check is performed on the entire message to ensure safety.
-    is_ascii = message.isascii()
+    if is_ascii is None:
+        is_ascii = message.isascii()
+
     if msg_lower is None:
         msg_lower = message.lower()
-
-    # We only check from the 'pos' offset to maintain O(1) tail processing during streaming.
-    search_text = msg_lower[pos:]
 
     if is_ascii:
         # Optimization: For small sets of fixed keywords (28), a pre-compiled regex search
         # is significantly faster (~1.7x) than an iterative any() substring check in CPython.
-        return bool(CRISIS_PATTERN.search(search_text))
+        # We use the pos argument to avoid O(N) string slicing.
+        return bool(CRISIS_PATTERN.search(msg_lower, pos))
 
     # Slow-path for non-ASCII messages or messages with invisible characters (handles homoglyph obfuscation)
-    # Check current tail first to catch common keywords immediately
-    if CRISIS_PATTERN.search(search_text):
+    # Check current tail first to catch common keywords immediately.
+    # We use pos argument to maintain O(1) tail processing relative to total string length.
+    if CRISIS_PATTERN.search(msg_lower, pos):
         return True
 
-    # Normalize NFKC and apply manual homoglyph mapping for defense-in-depth
-    # Also strip common invisible characters used for obfuscation
+    # Slow-path: Normalize NFKC and apply manual homoglyph mapping for defense-in-depth.
+    # We use slicing here because normalization might change string length/indices.
+    search_text = msg_lower[pos:]
     normalized = _INVISIBLE_CHARS_RE.sub('', search_text)
     normalized = unicodedata.normalize('NFKC', normalized).translate(_HOMOGLYPH_MAP)
     return bool(CRISIS_PATTERN.search(normalized))
@@ -627,6 +632,8 @@ def main():
                     # in-place growth when no other references to the string exist.
                     full_response = ""
                     full_response_lower = ""
+                    # Optimization: Maintain is_ascii flag incrementally to avoid O(N^2) complexity.
+                    full_is_ascii = True
                     # Use token buffering to reduce UI update frequency and websocket traffic
                     chunk_count = 0
                     aborted = False
@@ -635,31 +642,33 @@ def main():
                     for response_chunk in get_bot_response(chat_context):
                         full_response += response_chunk
                         full_response_lower += response_chunk.lower()
+                        # Optimization: Track ASCII status incrementally to skip O(N) re-scans in inner functions.
+                        if full_is_ascii and not response_chunk.isascii():
+                            full_is_ascii = False
                         chunk_count += 1
 
                         if chunk_count == 1 or chunk_count % 5 == 0:
                             # Incremental crisis check for immediate intervention (Defense-in-depth)
-                            # Optimization: Pass the full string and an offset instead of allocating a new string slice.
+                            # Optimization: Pass pre-calculated state to maintain O(N) total complexity.
                             # We batch this with the UI update to reduce safety processing overhead by 80%.
-                            # We pass the pre-calculated full_response_lower to bypass redundant .lower() calls.
-                            if detect_crisis(full_response, msg_lower=full_response_lower, pos=max(0, len(full_response) - 300)):
+                            if detect_crisis(full_response, msg_lower=full_response_lower, pos=max(0, len(full_response) - 300), is_ascii=full_is_ascii):
                                 logger.warning("Safety: Crisis detected in AI response during streaming. Aborting.")
                                 full_response = CRISIS_FALLBACK
                                 aborted = True
                                 break
 
-                            # Sanitize incremental response for safety
-                            # We pass full_response_lower to bypass redundant .lower() call.
-                            response_placeholder.markdown(sanitize_error(full_response, msg_lower=full_response_lower) + "▌")
+                            # Sanitize incremental response for safety.
+                            # We pass pre-calculated state to bypass redundant O(N) calls.
+                            response_placeholder.markdown(sanitize_error(full_response, msg_lower=full_response_lower, is_ascii=full_is_ascii) + "▌")
 
                     # Final safety and sanitization check
                     if not aborted:
                         # Safety: check raw response for crisis indicators before sanitization
-                        if detect_crisis(full_response, msg_lower=full_response_lower):
+                        if detect_crisis(full_response, msg_lower=full_response_lower, is_ascii=full_is_ascii):
                             logger.warning("Safety: Crisis detected in AI response at final check. Redacting.")
                             final_response = CRISIS_FALLBACK
                         else:
-                            final_response = sanitize_error(full_response, msg_lower=full_response_lower)
+                            final_response = sanitize_error(full_response, msg_lower=full_response_lower, is_ascii=full_is_ascii)
                     else:
                         final_response = full_response
 
