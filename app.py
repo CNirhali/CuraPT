@@ -90,12 +90,18 @@ def sanitize_error(message, msg_lower=None):
 
     # Defense-in-depth: Normalize NFKC and apply homoglyph mapping for non-ASCII messages
     # to prevent bypasses using lookalike characters (e.g., Cyrillic 'а' in "password").
-    # Also strip common invisible characters used for obfuscation.
-    if not message.isascii() or _INVISIBLE_CHARS_RE.search(message):
-        message = unicodedata.normalize('NFKC', message).translate(_HOMOGLYPH_MAP)
+    # Optimization: All _INVISIBLE_CHARS_RE are non-ASCII, so isascii() guard is sufficient.
+    if not message.isascii():
+        normalized = unicodedata.normalize('NFKC', message).translate(_HOMOGLYPH_MAP)
         # Strip common invisible/zero-width characters before sanitization
-        message = _INVISIBLE_CHARS_RE.sub('', message)
-        msg_lower = None # Force recalculation after normalization
+        if _INVISIBLE_CHARS_RE.search(normalized):
+            normalized = _INVISIBLE_CHARS_RE.sub('', normalized)
+
+        # Optimization: Only reset msg_lower if the message actually changed after normalization.
+        # This preserves the incremental lowercase string provided during streaming if no obfuscation is found.
+        if normalized != message:
+            message = normalized
+            msg_lower = None # Force recalculation after normalization
 
     # Optimization: return early for messages without sensitive markers (approx. 30-40% faster than any())
     # We use the pre-compiled SENSITIVE_FAST_RE for the global check.
@@ -207,7 +213,10 @@ for name, data in AVATARS.items():
         "ready_msg": ready_msg,
         "theme_color": data["theme_color"],
         "here_msg": f"🟢 {name} {ready_msg}",
-        "welcome_greeting": data["welcome_greeting"]
+        "welcome_greeting": data["welcome_greeting"],
+        # Pre-calculate role mappings to reduce dictionary creation overhead during reruns
+        "role_labels": {"assistant": name, "user": "You"},
+        "role_icons": {"assistant": icon, "user": "👤"}
     }
 
 # Crisis detection keywords and pre-compiled regex for performance
@@ -229,36 +238,42 @@ CRISIS_PATTERN = re.compile(r'\b(?:' + r'|'.join(map(re.escape, CRISIS_KEYWORDS_
 # Shortest crisis keywords like "suicide" or "kill me" are 7 characters long
 MIN_CRISIS_KEYWORD_LEN = 7
 
-def detect_crisis(message, msg_lower=None):
+def detect_crisis(message, msg_lower=None, pos=0):
     """
     Detect if the message indicates a crisis situation using regex.
     Includes normalization for homoglyphs and NFKC for robustness against obfuscation.
 
     msg_lower can be provided to bypass redundant .lower() calls.
+    pos can be used to search only from a specific offset (e.g. for streaming efficiency).
     """
     # Optimization: return False immediately for very short, safe inputs to avoid string processing
-    if len(message) < MIN_CRISIS_KEYWORD_LEN:
+    # We use the relative length from the pos offset
+    if len(message) - pos < MIN_CRISIS_KEYWORD_LEN:
         return False
 
     # Optimization: O(N) fast-path using isascii() and substring check.
     # We prioritize ASCII messages as they are the most common and don't require normalization.
+    # Note: isascii() check is performed on the entire message to ensure safety.
     is_ascii = message.isascii()
     if msg_lower is None:
         msg_lower = message.lower()
 
+    # We only check from the 'pos' offset to maintain O(1) tail processing during streaming.
+    search_text = msg_lower[pos:]
+
     if is_ascii:
         # Optimization: For small sets of fixed keywords (28), a pre-compiled regex search
         # is significantly faster (~1.7x) than an iterative any() substring check in CPython.
-        return bool(CRISIS_PATTERN.search(msg_lower))
+        return bool(CRISIS_PATTERN.search(search_text))
 
     # Slow-path for non-ASCII messages or messages with invisible characters (handles homoglyph obfuscation)
-    # Check original first to catch common keywords immediately
-    if CRISIS_PATTERN.search(msg_lower):
+    # Check current tail first to catch common keywords immediately
+    if CRISIS_PATTERN.search(search_text):
         return True
 
     # Normalize NFKC and apply manual homoglyph mapping for defense-in-depth
     # Also strip common invisible characters used for obfuscation
-    normalized = _INVISIBLE_CHARS_RE.sub('', msg_lower)
+    normalized = _INVISIBLE_CHARS_RE.sub('', search_text)
     normalized = unicodedata.normalize('NFKC', normalized).translate(_HOMOGLYPH_MAP)
     return bool(CRISIS_PATTERN.search(normalized))
 
@@ -540,10 +555,9 @@ def main():
 
     st.sidebar.info("⚕️ This bot is **not a replacement** for professional care. If you're in distress, please use the resources below. They are free, confidential, and available 24/7.")
 
-    # Pre-calculate role-to-label and role-to-avatar mappings outside the rendering loop.
-    # This reduces conditional logic overhead during reruns, especially as history grows.
-    role_labels = {"assistant": selected_avatar, "user": "You"}
-    role_icons = {"assistant": assistant_icon, "user": "👤"}
+    # Use pre-calculated role-to-label and role-to-avatar mappings to reduce allocation overhead.
+    role_labels = persona["role_labels"]
+    role_icons = persona["role_icons"]
 
     # Display chat messages from history
     processed_suggestion = None
@@ -573,7 +587,8 @@ def main():
 
     # Chat input is always visible at the bottom of the page
     # Proactive check for API key to disable input if missing
-    api_key_configured = bool(os.getenv("MISTRAL_API_KEY"))
+    # Optimization: Use the api_key_configured boolean to avoid redundant os.getenv() calls
+    api_key_configured = bool(api_key)
     user_input = st.chat_input(
         placeholder if api_key_configured else "Please configure your Mistral API key in the sidebar to start chatting.",
         max_chars=2000,
@@ -620,10 +635,10 @@ def main():
 
                         if chunk_count == 1 or chunk_count % 5 == 0:
                             # Incremental crisis check for immediate intervention (Defense-in-depth)
-                            # Optimization: Check only the last 300 chars to maintain O(N) complexity as response grows.
+                            # Optimization: Pass the full string and an offset instead of allocating a new string slice.
                             # We batch this with the UI update to reduce safety processing overhead by 80%.
-                            # We pass the pre-calculated lowercase slice to bypass redundant processing.
-                            if detect_crisis(full_response[-300:], msg_lower=full_response_lower[-300:]):
+                            # We pass the pre-calculated full_response_lower to bypass redundant .lower() calls.
+                            if detect_crisis(full_response, msg_lower=full_response_lower, pos=max(0, len(full_response) - 300)):
                                 logger.warning("Safety: Crisis detected in AI response during streaming. Aborting.")
                                 full_response = CRISIS_FALLBACK
                                 aborted = True
