@@ -482,10 +482,14 @@ def main():
         st.caption(here_msg)
         st.markdown("---")
 
+    # Calculate session duration for temporal context
+    duration_mins = int((datetime.now() - state.session_start_time).total_seconds() // 60)
+    duration_label = f"{duration_mins}m active" if duration_mins > 0 else "Just started"
+
     # Manage Conversation Popover
-    with st.sidebar.popover(f"⚙️ {selected_avatar} Session ({msg_count})", use_container_width=True):
+    with st.sidebar.popover(f"⚙️ {selected_avatar} Session ({msg_count} message{'s' if msg_count != 1 else ''})", use_container_width=True):
         st.write("Settings for your current chat session.")
-        st.caption(f"🕒 Session started at {state.session_start_time.strftime('%H:%M:%S')}")
+        st.caption(f"🕒 Started at {state.session_start_time.strftime('%I:%M %p')} • {duration_label}")
         st.divider()
 
         # Export History
