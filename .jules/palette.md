@@ -17,3 +17,7 @@
 ## 2025-05-19 - [Dialog-Based Destructive Action Confirmation]
 **Learning:** Replacing inline confirmation mechanisms (like checkboxes) with modal dialogs (@st.dialog) for destructive actions (e.g., clearing chat history) creates a more intentional and focused user experience. It reduces UI clutter in secondary menus and provides a clear, isolated context for the user to confirm their decision.
 **Action:** Use @st.dialog for irreversible or significant destructive operations to ensure user intentionality and maintain a clean primary interface.
+
+## 2025-05-20 - [Enhanced Session Metadata & Temporal Awareness]
+**Learning:** Providing real-time session metadata (like "minutes active") and using human-centric pluralization in UI labels (e.g., "1 message" vs "2 messages") increases user perceived value and provides helpful temporal context. Synchronizing time formats across different UI sections (chat bubbles vs sidebar) reduces cognitive load and creates a more cohesive experience.
+**Action:** Always implement proper pluralization for count-based labels and ensure temporal metadata (timestamps, durations) are formatted consistently with the primary content area.
