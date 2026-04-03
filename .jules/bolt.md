@@ -93,3 +93,7 @@
 ## 2026-03-29 - [Regex Guard vs. any() for Sanitization Loops]
 **Learning:** In a loop performing multiple regex substitutions, replacing Python-level `any(marker in s for marker in markers)` guards with pre-compiled regex guards (`guard.search(s)`) provides a measurable speedup. For small marker sets, it's ~1.2x-1.5x faster; for larger sets (like 18+ credit card prefixes), it can be up to 4x faster by offloading the alternation search to the regex engine's optimized C implementation.
 **Action:** Always prefer pre-compiled regex guards over iterative substring checks for complex sanitization or transformation loops, especially as the number of markers grows.
+
+## 2026-03-31 - [Incremental ASCII tracking and pos-based regex search]
+**Learning:** Calling `isascii()` on a continuously growing string in an LLM streaming loop creates (N^2)$ total complexity. Tracking ASCII status incrementally (`full_is_ascii &= chunk.isascii()`) reduces this to (N)$. Additionally, using the `pos` argument in `re.search()` instead of string slicing (`msg[pos:]`) avoids unnecessary memory allocations and (N)$ string copying.
+**Action:** Always maintain incremental state for character-set checks and use `pos` arguments in regex operations to maintain true (N)$ complexity during streaming.
