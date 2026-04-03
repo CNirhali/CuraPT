@@ -405,7 +405,6 @@ def confirm_clear_dialog():
             st.rerun()
 
 def main():
-    st.title("Mental Health Ease Bot")
     # Optimization: Use local variables for session state and environment to bypass proxy/OS overhead.
     state = st.session_state
     api_key = os.getenv("MISTRAL_API_KEY")
@@ -419,6 +418,8 @@ def main():
     persona = PERSONA_DATA[current_selected]
     theme_color = persona["theme_color"]
 
+    # Immersive title with persona icon
+    st.title(f"{persona['icon']} Mental Health Ease Bot")
     st.subheader("Your AI companion for mental well-being and personal growth", divider=theme_color)
 
     # Initialize session state
@@ -435,6 +436,9 @@ def main():
     # Proactive API key check for better onboarding
     if not api_key:
         st.sidebar.warning("⚠️ **API Key Missing**: Please add your `MISTRAL_API_KEY` to a `.env` file to enable the AI companion. You can get one at [console.mistral.ai](https://console.mistral.ai/).")
+
+    # Themed Sidebar Header to reinforce persona presence
+    st.sidebar.header(f"{persona['icon']} {current_selected}", divider=theme_color)
 
     # Avatar selection
     selected_avatar = st.sidebar.selectbox(
@@ -490,6 +494,14 @@ def main():
     with st.sidebar.popover(f"⚙️ {selected_avatar} Session ({msg_count} message{'s' if msg_count != 1 else ''})", use_container_width=True):
         st.write("Settings for your current chat session.")
         st.caption(f"🕒 Started at {state.session_start_time.strftime('%I:%M %p')} • {duration_label}")
+
+        # Calculate message counts for transparency
+        user_msgs = sum(1 for m in messages if m["role"] == "user")
+        assistant_msgs = sum(1 for m in messages if m["role"] == "assistant")
+
+        st.subheader("Session Details", divider=theme_color)
+        st.caption(f"👤 Your messages: {user_msgs}")
+        st.caption(f"{persona['icon']} {selected_avatar}'s messages: {assistant_msgs}")
         st.divider()
 
         # Export History
@@ -674,8 +686,8 @@ def main():
             st.rerun()
 
     # Sidebar resources
-    st.sidebar.markdown("---")
-    st.sidebar.subheader("🚨 Emergency Resources")
+    st.sidebar.divider()
+    st.sidebar.subheader("🚨 Emergency Resources", divider="red")
     st.sidebar.caption("If you're in crisis, please contact these services. They are free, confidential, and available 24/7:")
     st.sidebar.link_button("📞 Call or Text 988", "tel:988", use_container_width=True, help="National Suicide Prevention Lifeline - Free, confidential, 24/7")
     st.sidebar.link_button("💬 Text HOME to 741741", "sms:741741", use_container_width=True, help="Crisis Text Line - Free, confidential, 24/7")
