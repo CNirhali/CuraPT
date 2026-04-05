@@ -21,3 +21,7 @@
 ## 2025-05-20 - [Enhanced Session Metadata & Temporal Awareness]
 **Learning:** Providing real-time session metadata (like "minutes active") and using human-centric pluralization in UI labels (e.g., "1 message" vs "2 messages") increases user perceived value and provides helpful temporal context. Synchronizing time formats across different UI sections (chat bubbles vs sidebar) reduces cognitive load and creates a more cohesive experience.
 **Action:** Always implement proper pluralization for count-based labels and ensure temporal metadata (timestamps, durations) are formatted consistently with the primary content area.
+
+## 2025-05-21 - [Frictionless Crisis Intervention & Visual Affordance]
+**Learning:** In high-stress or crisis scenarios, every extra step (like typing 'HOME' to a shortcode) is a barrier. Pre-filling SMS bodies using URI parameters (`sms:number?body=text`) significantly improves accessibility for users in distress. Additionally, using standard icons for suggestion chips and destructive confirmations provides immediate visual affordance, making the interface more intuitive.
+**Action:** Always use pre-filled message bodies for SMS-based utility links and leverage Streamlit's `icon` parameter for better visual cues on interactive elements.

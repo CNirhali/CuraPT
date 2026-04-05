@@ -288,7 +288,7 @@ def get_crisis_response():
     I'm concerned about your safety. Please know that you're not alone, and help is available:
     
     - 📞 **National Suicide Prevention Lifeline**: [Call or Text 988](tel:988)
-    - 💬 **Crisis Text Line**: [Text HOME to 741741](sms:741741)
+    - 💬 **Crisis Text Line**: [Text HOME to 741741](sms:741741?body=HOME)
     - 🚑 **Emergency Services**: [Call 911](tel:911)
     
     These services are available 24/7 and are free and confidential.
@@ -402,7 +402,7 @@ def confirm_clear_dialog():
         if st.button("Cancel", use_container_width=True):
             st.rerun()
     with col2:
-        if st.button("Yes, Clear History", type="primary", use_container_width=True):
+        if st.button("Yes, Clear History", type="primary", use_container_width=True, icon="🗑️"):
             st.session_state.messages = []
             # Reset session start time for fresh conversation
             st.session_state.session_start_time = datetime.now()
@@ -522,13 +522,13 @@ def main():
                 duration_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
                 export_parts = [
-                    f"Mental Health Ease Bot - {selected_avatar} Session",
+                    f"Mental Health Ease Bot - {persona['icon']} {selected_avatar} Session",
                     f"Date: {now.strftime('%Y-%m-%d %H:%M:%S')}",
                     f"Session Duration: {duration_str}",
                     "-" * 40 + "\n"
                 ]
                 export_parts.extend(
-                    f"[{msg.get('timestamp', 'N/A')}] {selected_avatar if msg['role'] == 'assistant' else 'You'}: {msg['content']}\n"
+                    f"[{msg.get('timestamp', 'N/A')}] {selected_avatar if msg['role'] == 'assistant' else 'You'}: {msg['content']}\n\n"
                     for msg in messages
                 )
                 export_parts.append("\n" + "=" * 40)
@@ -601,7 +601,7 @@ def main():
             if idx == 0 and msg_count == 1:
                 st.caption("✨ Click on a suggestion below or type your own message to start:")
                 for suggestion in suggestions:
-                    if st.button(suggestion, use_container_width=True, help=f"Ask {selected_avatar}: '{suggestion}'"):
+                    if st.button(suggestion, use_container_width=True, help=f"Ask {selected_avatar}: '{suggestion}'", icon="✨"):
                         processed_suggestion = suggestion
 
     prompt = processed_suggestion if processed_suggestion else None
@@ -699,7 +699,7 @@ def main():
     st.sidebar.subheader("🚨 Emergency Resources", divider="red")
     st.sidebar.caption("If you're in crisis, please contact these services. They are free, confidential, and available 24/7:")
     st.sidebar.link_button("📞 Call or Text 988", "tel:988", use_container_width=True, help="National Suicide Prevention Lifeline - Free, confidential, 24/7")
-    st.sidebar.link_button("💬 Text HOME to 741741", "sms:741741", use_container_width=True, help="Crisis Text Line - Free, confidential, 24/7")
+    st.sidebar.link_button("💬 Text HOME to 741741", "sms:741741?body=HOME", use_container_width=True, help="Crisis Text Line - Free, confidential, 24/7")
     st.sidebar.link_button("🚑 Call 911", "tel:911", use_container_width=True, type="primary", help="Emergency Services - For immediate danger")
 
 if __name__ == "__main__":
