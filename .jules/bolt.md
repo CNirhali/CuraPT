@@ -83,7 +83,7 @@
 **Action:** Always build lowercase or normalized versions of streamed content incrementally when high-frequency safety checks are required during the streaming process.
 
 ## 2026-03-28 - [Regex vs. any() for Small Keyword Sets]
-**Learning:** For small sets of fixed keywords (e.g., 28 items), a pre-compiled regex search in CPython can be significantly faster (~1.7x) than an iterative `any(k in msg for k in keywords)` substring check. The regex engine's internal optimizations (like Boyer-Moore or Aho-Corasick variants) outperform manual iteration in the ASCII path.
+**Learning:** For small sets of fixed keywords (28 items), a pre-compiled regex search in CPython can be significantly faster (~1.7x) than an iterative `any(k in msg for k in keywords)` substring check. The regex engine's internal optimizations (like Boyer-Moore or Aho-Corasick variants) outperform manual iteration in the ASCII path.
 **Action:** Always benchmark `any()` vs. pre-compiled regex for keyword guards, especially when the keyword set is stable and moderate in size.
 
 ## 2026-03-29 - [Regex Guard vs. any() for Sanitization Loops]
@@ -97,3 +97,7 @@
 ## 2026-03-31 - [Incremental ASCII tracking and pos-based regex search]
 **Learning:** Calling `isascii()` on a continuously growing string in an LLM streaming loop creates (N^2)$ total complexity. Tracking ASCII status incrementally (`full_is_ascii &= chunk.isascii()`) reduces this to (N)$. Additionally, using the `pos` argument in `re.search()` instead of string slicing (`msg[pos:]`) avoids unnecessary memory allocations and (N)$ string copying.
 **Action:** Always maintain incremental state for character-set checks and use `pos` arguments in regex operations to maintain true (N)$ complexity during streaming.
+
+## 2026-04-01 - [Fast-path Guard for Non-ASCII Normalization]
+**Learning:** Skipping expensive NFKC normalization and homoglyph translation for clean non-ASCII strings (like emojis) provides a massive ~30x speedup for those inputs. This can be safely implemented by combining `unicodedata.is_normalized('NFKC', s)` with a pre-compiled regex guard (`_OBFUSCATION_RE`) that matches known homoglyphs and invisible characters. If normalization is skipped, safety-critical regex searches must still be performed on the original string to maintain functional correctness.
+**Action:** Always implement fast-path guards for expensive Unicode normalization or transformation pipelines, but ensure safety logic remains active for the un-normalized path if the fast-path triggers.
