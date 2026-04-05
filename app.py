@@ -269,17 +269,15 @@ def detect_crisis(message, msg_lower=None, pos=0, is_ascii=None):
     if msg_lower is None:
         msg_lower = message.lower()
 
-    if is_ascii:
-        # Optimization: For small sets of fixed keywords (28), a pre-compiled regex search
-        # is significantly faster (~1.7x) than an iterative any() substring check in CPython.
-        # We use the pos argument to avoid O(N) string slicing.
-        return bool(CRISIS_PATTERN.search(msg_lower, pos))
-
-    # Slow-path for non-ASCII messages or messages with invisible characters (handles homoglyph obfuscation)
-    # Check current tail first to catch common keywords immediately.
-    # We use pos argument to maintain O(1) tail processing relative to total string length.
+    # Check raw string first (fastest path, handles both ASCII and clean non-ASCII text).
+    # Optimization: For small sets of fixed keywords (28), a pre-compiled regex search
+    # is significantly faster (~1.7x) than an iterative any() substring check in CPython.
+    # We use the pos argument to avoid O(N) string slicing.
     if CRISIS_PATTERN.search(msg_lower, pos):
         return True
+
+    if is_ascii:
+        return False
 
     # Slow-path: Normalize NFKC and apply manual homoglyph mapping for defense-in-depth.
     # We use slicing here because normalization might change string length/indices.
@@ -360,11 +358,12 @@ def handle_user_input(prompt, avatar_icon="🧘"):
 
     state.last_message_time = current_time
 
-    # Optimization: pre-calculate lowercase prompt once for both safety functions
+    # Optimization: pre-calculate properties once for both safety functions to avoid redundant scans
     prompt_lower = prompt.lower()
+    is_ascii = prompt.isascii()
 
     # Sanitize user input immediately (Defense-in-depth: prevent secrets from reaching the LLM or session state)
-    sanitized_prompt = sanitize_error(prompt, msg_lower=prompt_lower)
+    sanitized_prompt = sanitize_error(prompt, msg_lower=prompt_lower, is_ascii=is_ascii)
 
     # Reuse a single timestamp string for multiple message entries (if applicable)
     timestamp = datetime.now().strftime("%I:%M %p")
@@ -383,7 +382,7 @@ def handle_user_input(prompt, avatar_icon="🧘"):
         del messages[:-50]
 
     # Safety: Perform crisis detection on raw prompt to prevent bypass via sanitization (e.g., "secret is suicide")
-    is_crisis = detect_crisis(prompt, msg_lower=prompt_lower)
+    is_crisis = detect_crisis(prompt, msg_lower=prompt_lower, is_ascii=is_ascii)
     crisis_text = None
     if is_crisis:
         logger.warning(f"Safety: Crisis detected in user input.")
@@ -423,6 +422,8 @@ def confirm_clear_dialog():
             st.rerun()
 
 def main():
+    # Optimization: Localize current timestamp to avoid multiple system calls during a single rerun
+    now = datetime.now()
     # Optimization: Use local variables for session state and environment to bypass proxy/OS overhead.
     state = st.session_state
     api_key = os.getenv("MISTRAL_API_KEY")
@@ -446,7 +447,7 @@ def main():
     if "last_message_time" not in state:
         state.last_message_time = 0
     if "session_start_time" not in state:
-        state.session_start_time = datetime.now()
+        state.session_start_time = now
 
     # Local references for performance
     messages = state.messages
@@ -484,7 +485,7 @@ def main():
         messages.append({
             "role": "assistant",
             "content": welcome_msg,
-            "timestamp": datetime.now().strftime("%I:%M %p")
+            "timestamp": now.strftime("%I:%M %p")
         })
 
     # Calculate msg_count after initialization to ensure accurate first-load reporting
@@ -505,7 +506,7 @@ def main():
         st.markdown("---")
 
     # Calculate session duration for temporal context
-    duration_mins = int((datetime.now() - state.session_start_time).total_seconds() // 60)
+    duration_mins = int((now - state.session_start_time).total_seconds() // 60)
     duration_label = f"{duration_mins}m active" if duration_mins > 0 else "Just started"
 
     # Manage Conversation Popover
@@ -514,8 +515,14 @@ def main():
         st.caption(f"🕒 Started at {state.session_start_time.strftime('%I:%M %p')} • {duration_label}")
 
         # Calculate message counts for transparency
-        user_msgs = sum(1 for m in messages if m["role"] == "user")
-        assistant_msgs = sum(1 for m in messages if m["role"] == "assistant")
+        # Optimization: Use a single-pass loop instead of two sum() calls to reduce O(N) list traversal overhead.
+        user_msgs = 0
+        assistant_msgs = 0
+        for m in messages:
+            if m["role"] == "user":
+                user_msgs += 1
+            elif m["role"] == "assistant":
+                assistant_msgs += 1
 
         st.subheader("Session Details", divider=theme_color)
         st.caption(f"👤 Your messages: {user_msgs}")
@@ -528,7 +535,6 @@ def main():
             cache_key = f"export_cache_{selected_avatar}_{msg_count}"
 
             if "last_export" not in state or state.get("export_cache_key") != cache_key:
-                now = datetime.now()
                 duration = now - state.session_start_time
                 hours, remainder = divmod(int(duration.total_seconds()), 3600)
                 minutes, seconds = divmod(remainder, 60)
@@ -560,7 +566,7 @@ def main():
             st.download_button(
                 label=f"📥 Export Conversation ({msg_count} message{'s' if msg_count != 1 else ''})",
                 data=state.last_export,
-                file_name=f"{selected_avatar.lower().replace(' ', '_')}_chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                file_name=f"{selected_avatar.lower().replace(' ', '_')}_chat_{now.strftime('%Y%m%d_%H%M%S')}.txt",
                 mime="text/plain",
                 help="Download a text file containing your conversation history and safety resources.",
                 use_container_width=True
