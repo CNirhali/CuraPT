@@ -39,9 +39,10 @@ SANITIZATION_PATTERNS = [
     # Enhanced pattern to handle quoted secrets and preserve original separators
     # Use negative lookahead to avoid re-redacting already masked values
     # Supports optional quotes around identifiers (e.g., {"password": "..."}) using backreferences
-    (re.compile(r'(?i)(["\']?)\b(password|passwd|secret|token|api_key|aws_secret_access_key)\1(\s*(?:[:=]|is)\s*)(?!\[REDACTED)(?:"[^"]*"|\'[^\']*\'|[^\s,;]+)'), r'\1\2\1\3[REDACTED]', re.compile(r'password|passwd|secret|token|api_key|aws_secret_access_key')),
+    # Allow underscores before keywords (e.g., MISTRAL_API_KEY) using a lookbehind to preserve them.
+    (re.compile(r'(?i)(["\']?)(?:\b|(?<=_))(password|passwd|secret|token|api_key|aws_secret_access_key)\1(\s*(?:[:=]|is)\s*)(?!\[REDACTED)(?:"[^"]*"|\'[^\']*\'|[^\s,;]+)'), r'\1\2\1\3[REDACTED]', re.compile(r'password|passwd|secret|token|api_key|aws_secret_access_key')),
     # Generic 'key' pattern is last and avoids matching PEM headers via negative lookahead
-    (re.compile(r'(?i)(["\']?)\b(key)\1(\s*(?:[:=]|is)\s*)(?!\[REDACTED|---)(?:"[^"]*"|\'[^\']*\'|[^\s,;]+)'), r'\1\2\1\3[REDACTED]', re.compile(r'key:|key=|key is|key |"key":|\'key\':')),
+    (re.compile(r'(?i)(["\']?)(?:\b|(?<=_))(key)\1(\s*(?:[:=]|is)\s*)(?!\[REDACTED|---)(?:"[^"]*"|\'[^\']*\'|[^\s,;]+)'), r'\1\2\1\3[REDACTED]', re.compile(r'key:|key=|key is|key |"key":|\'key\':')),
 ]
 # Optimization: Substring markers to trigger expensive regex execution
 # Refinement: replaced 'pass' with 'password'/'passwd' to avoid false positives on 'compassion'

@@ -92,3 +92,8 @@
 **Vulnerability:** Redaction and crisis detection filters could be bypassed by inserting non-printing characters (e.g., zero-width space \u200B, ZWNJ \u200C) between characters of a sensitive token or keyword.
 **Learning:** Regex-based filters are easily defeated by characters that are invisible to the user but significant to the regex engine. Stripping these characters *before* pattern matching is essential for robust filtering.
 **Prevention:** Use a pre-compiled regex to strip all known zero-width and invisible characters (\u200B, \u200C, \u200D, \uFEFF) during the normalization phase of security filters.
+
+## 2026-04-06 - [Sanitization Bypass via Underscore Prefixes]
+**Vulnerability:** Redaction of secrets (API keys, tokens) was bypassed when keywords were preceded by underscores (e.g., `MISTRAL_API_KEY`).
+**Learning:** Standard word boundaries (`\b`) consider underscores to be part of a word. Consequently, environment variable names often bypass regex patterns that rely on `\b` to identify sensitive keywords.
+**Prevention:** Update sanitization regexes to explicitly allow underscores as valid leading characters for sensitive identifiers, for example by using `(?:\b|(?<=_))` to match keywords either at a word boundary or immediately following an underscore.
