@@ -101,3 +101,11 @@
 ## 2026-04-01 - [Fast-path Guard for Non-ASCII Normalization]
 **Learning:** Skipping expensive NFKC normalization and homoglyph translation for clean non-ASCII strings (like emojis) provides a massive ~30x speedup for those inputs. This can be safely implemented by combining `unicodedata.is_normalized('NFKC', s)` with a pre-compiled regex guard (`_OBFUSCATION_RE`) that matches known homoglyphs and invisible characters. If normalization is skipped, safety-critical regex searches must still be performed on the original string to maintain functional correctness.
 **Action:** Always implement fast-path guards for expensive Unicode normalization or transformation pipelines, but ensure safety logic remains active for the un-normalized path if the fast-path triggers.
+
+## 2026-04-03 - [Consolidated Regex Search Path for Safety]
+**Learning:** In safety functions with complex slow-paths (like normalization), consolidating the primary regex search to run once on the raw string for both ASCII and non-ASCII cases eliminates redundant searches in the non-ASCII path. This provides a measurable speedup for non-ASCII messages that don't match the safety pattern.
+**Action:** Always structure safety functions to perform a single, definitive regex search on the raw input before falling back to expensive normalization or transformation logic.
+
+## 2026-04-03 - [Single-pass Metadata Calculation in Streamlit Reruns]
+**Learning:** In Streamlit reruns, replacing multiple O(N) list traversals (e.g., separate sum() calls for different message types) with a single-pass loop reduces overhead as conversation history grows. While micro-optimizations like localizing datetime.now() are minor, they contribute to a smoother rerun experience when combined with algorithmic improvements.
+**Action:** Always look for opportunities to consolidate multiple traversals of the same session state lists into a single pass during the main execution loop.
