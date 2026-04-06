@@ -161,9 +161,9 @@ AVATARS = {
         "ready_msg": "is here to support you",
         "system_prompt": "You are a compassionate and professional therapist. Your role is to:\n1. Provide empathetic support and guidance\n2. Help users develop coping strategies\n3. Encourage professional help when needed\n4. Maintain appropriate boundaries\n5. Focus on evidence-based therapeutic approaches",
         "suggestions": [
-            "🧘 How can I deal with my anxiety?",
-            "🧘 I've been feeling low lately.",
-            "🧘 Can you help me with a coping strategy?"
+            "How can I deal with my anxiety?",
+            "I've been feeling low lately.",
+            "Can you help me with a coping strategy?"
         ]
     },
     "Life Coach": {
@@ -176,9 +176,9 @@ AVATARS = {
         "ready_msg": "is ready to help you grow",
         "system_prompt": "You are an enthusiastic life coach. Your role is to:\n1. Help users set and achieve personal goals\n2. Provide motivation and accountability\n3. Share practical strategies for self-improvement\n4. Focus on building confidence and resilience\n5. Encourage positive thinking and action",
         "suggestions": [
-            "⚡ How can I stay motivated today?",
-            "⚡ I want to set some personal goals.",
-            "⚡ How can I build more resilience?"
+            "How can I stay motivated today?",
+            "I want to set some personal goals.",
+            "How can I build more resilience?"
         ]
     },
     "Friend": {
@@ -191,9 +191,9 @@ AVATARS = {
         "ready_msg": "is here to listen",
         "system_prompt": "You are a caring and understanding friend. Your role is to:\n1. Provide emotional support and validation\n2. Listen actively and show empathy\n3. Share personal experiences when relevant\n4. Offer practical advice from a friend's perspective\n5. Maintain a warm and casual conversation style",
         "suggestions": [
-            "🤗 I just need someone to talk to.",
-            "🤗 I had a rough day at work.",
-            "🤗 Can you tell me something positive?"
+            "I just need someone to talk to.",
+            "I had a rough day at work.",
+            "Can you tell me something positive?"
         ]
     }
 }
