@@ -344,7 +344,7 @@ def get_bot_response(messages):
         # Return a generic error message to the user to prevent information leakage (OWASP A03:2021)
         yield "I'm here for you, but I'm having a little trouble connecting right now. Please try again in a moment."
 
-def handle_user_input(prompt, avatar_icon="🧘"):
+def handle_user_input(prompt, avatar_icon="🧘", now=None):
     """Update state with user input and check for crisis. Returns (success, is_crisis, crisis_text, sanitized_prompt)."""
     # Optimization: Use local variable for session state to minimize proxy overhead.
     state = st.session_state
@@ -354,7 +354,10 @@ def handle_user_input(prompt, avatar_icon="🧘"):
         st.toast("Your message is a bit too long. Please try to shorten it.", icon="⚠️")
         return False, False, None, prompt
 
-    current_time = time.time()
+    if now is None:
+        now = datetime.now()
+
+    current_time = now.timestamp()
     time_since_last = current_time - state.get("last_message_time", 0)
     if time_since_last < 2.0:
         st.toast(f"Take a breath! Please wait {2.0 - time_since_last:.1f}s", icon=avatar_icon)
@@ -370,14 +373,15 @@ def handle_user_input(prompt, avatar_icon="🧘"):
     sanitized_prompt = sanitize_error(prompt, msg_lower=prompt_lower, is_ascii=is_ascii)
 
     # Reuse a single timestamp string for multiple message entries (if applicable)
-    timestamp = datetime.now().strftime("%I:%M %p")
+    timestamp = now.strftime("%I:%M %p")
     messages = state.messages
 
     # Add user message to chat as dictionary to support metadata like timestamps
     messages.append({
         "role": "user",
         "content": sanitized_prompt,
-        "timestamp": timestamp
+        "timestamp": timestamp,
+        "timestamp_caption": f"🕒 Sent at {timestamp}"
     })
 
     # History capping for performance and security
@@ -394,14 +398,16 @@ def handle_user_input(prompt, avatar_icon="🧘"):
         messages.append({
             "role": "assistant",
             "content": crisis_text,
-            "timestamp": timestamp
+            "timestamp": timestamp,
+            "timestamp_caption": f"🕒 Sent at {timestamp}"
         })
 
     return True, is_crisis, crisis_text, sanitized_prompt
 
-def get_time_based_greeting():
+def get_time_based_greeting(hour=None):
     """Return a time-appropriate greeting for the welcome message."""
-    hour = datetime.now().hour
+    if hour is None:
+        hour = datetime.now().hour
     if hour < 12:
         return "Good morning"
     elif 12 <= hour < 18:
@@ -484,16 +490,19 @@ def main():
 
     # Ensure the conversation starts with a persona-specific welcome message
     if not messages:
-        greeting = get_time_based_greeting()
+        greeting = get_time_based_greeting(hour=now.hour)
         welcome_msg = f"{greeting}! I'm {selected_avatar}. {persona['welcome_greeting']} How are you feeling?"
+        timestamp = now.strftime("%I:%M %p")
         messages.append({
             "role": "assistant",
             "content": welcome_msg,
-            "timestamp": now.strftime("%I:%M %p")
+            "timestamp": timestamp,
+            "timestamp_caption": f"🕒 Sent at {timestamp}"
         })
 
-    # Calculate msg_count after initialization to ensure accurate first-load reporting
+    # Calculate msg_count and label once to reuse across popover, buttons, and clear history
     msg_count = len(messages)
+    msg_count_label = f"({msg_count} message{'s' if msg_count != 1 else ''})"
 
     # Pre-fetch localized persona-specific constants from the pre-calculated dictionary
     assistant_icon = persona["icon"]
@@ -518,7 +527,7 @@ def main():
         duration_label = f"{duration_total_mins}m active" if duration_total_mins > 0 else "Just started"
 
     # Manage Conversation Popover
-    with st.sidebar.popover(f"⚙️ {selected_avatar} Session ({msg_count} message{'s' if msg_count != 1 else ''})", use_container_width=True):
+    with st.sidebar.popover(f"⚙️ {selected_avatar} Session {msg_count_label}", use_container_width=True):
         st.write("Settings for your current chat session.")
         st.caption(f"🕒 Started at {state.session_start_time.strftime('%I:%M %p')} • {duration_label}")
 
@@ -572,7 +581,7 @@ def main():
                 state.export_cache_key = cache_key
 
             st.download_button(
-                label=f"📥 Export Conversation ({msg_count} message{'s' if msg_count != 1 else ''})",
+                label=f"📥 Export Conversation {msg_count_label}",
                 data=state.last_export,
                 file_name=f"{selected_avatar.lower().replace(' ', '_')}_chat_{now.strftime('%Y%m%d_%H%M%S')}.txt",
                 mime="text/plain",
@@ -588,7 +597,7 @@ def main():
 
         # Clear Chat History with confirmation dialog
         st.write("⚠️ **Destructive Actions**")
-        if st.button(f"🗑️ Clear Chat History ({msg_count} message{'s' if msg_count != 1 else ''})",
+        if st.button(f"🗑️ Clear Chat History {msg_count_label}",
                      help="Open a confirmation dialog to delete all messages",
                      use_container_width=True,
                      type="secondary"):
@@ -616,7 +625,8 @@ def main():
         # Optimization: use dictionary lookups instead of multiple if/else branches
         role = message["role"]
         content = message["content"]
-        timestamp = message.get("timestamp", "")
+        # Use pre-calculated caption to avoid redundant formatting in the display loop
+        timestamp_caption = message.get("timestamp_caption")
 
         role_label = role_labels.get(role, role)
         avatar = role_icons.get(role, "👤")
@@ -625,8 +635,8 @@ def main():
             # Switch to st.markdown for string content to bypass Streamlit's internal type-checking.
             # This improves performance when rendering large conversation histories (up to 50 msgs).
             st.markdown(content)
-            if timestamp:
-                st.caption(f"🕒 Sent at {timestamp}")
+            if timestamp_caption:
+                st.caption(timestamp_caption)
             # Integrate suggestions into the initial greeting bubble for better visual hierarchy
             if idx == 0 and msg_count == 1:
                 st.caption("✨ Click on a suggestion below or type your own message to start:")
@@ -650,7 +660,7 @@ def main():
 
     # Message processing
     if prompt:
-        success, is_crisis, crisis_text, sanitized_prompt = handle_user_input(prompt, avatar_icon=assistant_icon)
+        success, is_crisis, crisis_text, sanitized_prompt = handle_user_input(prompt, avatar_icon=assistant_icon, now=now)
         if success:
             # Immediate feedback: render sanitized user message
             with st.chat_message("You", avatar="👤"):
@@ -715,10 +725,12 @@ def main():
                         final_response = full_response
 
                     response_placeholder.markdown(final_response)
+                    timestamp = now.strftime("%I:%M %p")
                     messages.append({
                         "role": "assistant",
                         "content": final_response,
-                        "timestamp": datetime.now().strftime("%I:%M %p")
+                        "timestamp": timestamp,
+                        "timestamp_caption": f"🕒 Sent at {timestamp}"
                     })
 
             # Rerun to clear input and refresh UI state
