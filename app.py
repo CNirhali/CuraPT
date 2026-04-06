@@ -36,24 +36,26 @@ SANITIZATION_PATTERNS = [
     (re.compile(r'\b(?:4[0-9]{3}|5[1-5][0-9]{2}|6011)(?:[\s-]?[0-9]{4}){3}\b|\b3[47][0-9]{2}[\s-]?[0-9]{6}[\s-]?[0-9]{5}\b'), '[REDACTED_PII]', re.compile(r'4[0-9]|5[1-5]|3[47]|6011')),
     (re.compile(r'\beyJ[a-zA-Z0-9_\-\/+=]{10,}\.[a-zA-Z0-9_\-\/+=]{10,}\.[a-zA-Z0-9_\-\/+=]{10,}\b'), '[REDACTED_JWT]', re.compile(r'eyj')),
     (re.compile(r'(?i)Bearer\s+[a-zA-Z0-9._\-\/+=]+'), 'Bearer [REDACTED]', re.compile(r'bearer')),
+    (re.compile(r'(?i)Basic\s+[a-zA-Z0-9+/=]+'), 'Basic [REDACTED]', re.compile(r'basic')),
     # Enhanced pattern to handle quoted secrets and preserve original separators
     # Use negative lookahead to avoid re-redacting already masked values
     # Supports optional quotes around identifiers (e.g., {"password": "..."}) using backreferences
-    # Allow underscores before keywords (e.g., MISTRAL_API_KEY) using a lookbehind to preserve them.
-    (re.compile(r'(?i)(["\']?)(?:\b|(?<=_))(password|passwd|secret|token|api_key|aws_secret_access_key)\1(\s*(?:[:=]|is)\s*)(?!\[REDACTED)(?:"[^"]*"|\'[^\']*\'|[^\s,;]+)'), r'\1\2\1\3[REDACTED]', re.compile(r'password|passwd|secret|token|api_key|aws_secret_access_key')),
+    # Allow underscores or hyphens before keywords (e.g., MISTRAL_API_KEY, x-api-key) using a lookbehind.
+    (re.compile(r'(?i)(["\']?)(?:\b|(?<=[_-]))(password|passwd|secret|token|api_key|api-key|client_secret|x-api-key|aws_secret_access_key)\1(\s*(?:[:=]|is)\s*)(?!\[REDACTED)(?:"[^"]*"|\'[^\']*\'|[^\s,;]+)'), r'\1\2\1\3[REDACTED]', re.compile(r'password|passwd|secret|token|api_key|api-key|client_secret|x-api-key|aws_secret_access_key')),
     # Generic 'key' pattern is last and avoids matching PEM headers via negative lookahead
-    (re.compile(r'(?i)(["\']?)(?:\b|(?<=_))(key)\1(\s*(?:[:=]|is)\s*)(?!\[REDACTED|---)(?:"[^"]*"|\'[^\']*\'|[^\s,;]+)'), r'\1\2\1\3[REDACTED]', re.compile(r'key:|key=|key is|key |"key":|\'key\':')),
+    (re.compile(r'(?i)(["\']?)(?:\b|(?<=[_-]))(key)\1(\s*(?:[:=]|is)\s*)(?!\[REDACTED|---)(?:"[^"]*"|\'[^\']*\'|[^\s,;]+)'), r'\1\2\1\3[REDACTED]', re.compile(r'key:|key=|key is|key |"key":|\'key\':')),
 ]
 # Optimization: Substring markers to trigger expensive regex execution
 # Refinement: replaced 'pass' with 'password'/'passwd' to avoid false positives on 'compassion'
 # Included markers for AWS, GCP, GitHub (ghp/gho/ghu/ghr/ghs), Stripe, Slack (xoxb/xoxp/xoxg/xoxr/xoxs) and Private Keys
 # Reordered to place highly frequent markers at the beginning for faster short-circuiting in any()
 # Refinement: replaced 'begin' with '-----begin' to reduce false positives for common text.
-# Redundant 'aws_secret_access_key' removed as it is covered by 'key'.
+# Added Basic auth and new secret keywords (api-key, client_secret, x-api-key).
 SENSITIVE_MARKERS = [
-    "password", "token", "sk-", "secret", "key:", "key=", "key is", "key ", "passwd", "akia", "asia", "bearer",
+    "password", "token", "sk-", "secret", "key:", "key=", "key is", "key ", "passwd", "akia", "asia", "bearer", "basic",
     "aiza", "github_pat_", "ghp_", "gho_", "ghu_", "ghr_", "ghs_", "rk_live", "rk_test", "sk_live", "sk_test",
-    "xoxb-", "xoxp-", "xoxg-", "xoxr-", "xoxs-", "gocspx-", "eyj", "-----begin", "api_key", "aws_secret_access_key",
+    "xoxb-", "xoxp-", "xoxg-", "xoxr-", "xoxs-", "gocspx-", "eyj", "-----begin", "api_key", "api-key", "client_secret",
+    "x-api-key", "aws_secret_access_key",
     "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", # Visa
     "51", "52", "53", "54", "55",                              # Mastercard
     "34", "37",                                                # Amex
@@ -64,19 +66,20 @@ SENSITIVE_MARKERS = [
 SENSITIVE_FAST_RE = re.compile('|'.join(map(re.escape, SENSITIVE_MARKERS)))
 
 # Common Latin-lookalike homoglyphs (e.g., Cyrillic, Greek) for normalization
-# Expanded to include more comprehensive Cyrillic and Greek lookalikes
-# Moved to module level for use in both sanitize_error and detect_crisis
+# Expanded to include uppercase lookalikes and additional characters (ѕ, В, Н, Т, М, К, etc.)
+# to prevent bypasses using mixed-case or varied homoglyphs.
 _HOMOGLYPH_MAP = str.maketrans(
-    'аеіорсхујкмнзαεηικνρστυ',  # Lookalikes
-    'aeiopcxyjkmnzaenikvpsty'   # Latin equivalents
+    'аеіорсхујкмнзѕАЕІОРСХУЈКМНЗЅВНТαεηικνρστυΑΒΕΖΗΙΚΜΝΟΡΤΥΦΧ',  # Lookalikes
+    'aeiopcxyjkmnzsAEIOPCXYJKMNZSBHTaenikvpstyABEZHIKMNOPTYFX'   # Latin equivalents
 )
 
-# Common invisible/zero-width characters used for obfuscation (OWASP A03:2021)
-_INVISIBLE_CHARS_RE = re.compile(r'[\u200B\u200C\u200D\uFEFF]')
+# Common invisible/zero-width and control characters used for obfuscation (OWASP A03:2021)
+# Expanded with soft hyphen, bidi controls, and word joiners.
+_INVISIBLE_CHARS_RE = re.compile(r'[\u00AD\u200B\u200C\u200D\u202A-\u202E\u2060\uFEFF]')
 
 # Optimization: Combined regex of homoglyphs and invisible characters for fast-path trigger.
 # This allows skipping expensive NFKC normalization and translation for clean non-ASCII strings (like emojis).
-_OBFUSCATION_RE = re.compile(r'[аеіорсхујкмнзαεηικνρστυ\u200B\u200C\u200D\uFEFF]')
+_OBFUSCATION_RE = re.compile(r'[аеіорсхујкмнзѕАЕІОРСХУЈКМНЗЅВНТαεηικνρστυΑΒΕΖΗΙΚΜΝΟΡΤΥΦΧ\u00AD\u200B\u200C\u200D\u202A-\u202E\u2060\uFEFF]')
 
 def sanitize_error(message, msg_lower=None, is_ascii=None):
     """
