@@ -161,9 +161,9 @@ AVATARS = {
         "ready_msg": "is here to support you",
         "system_prompt": "You are a compassionate and professional therapist. Your role is to:\n1. Provide empathetic support and guidance\n2. Help users develop coping strategies\n3. Encourage professional help when needed\n4. Maintain appropriate boundaries\n5. Focus on evidence-based therapeutic approaches",
         "suggestions": [
-            "🧘 How can I deal with my anxiety?",
-            "🧘 I've been feeling low lately.",
-            "🧘 Can you help me with a coping strategy?"
+            "How can I deal with my anxiety?",
+            "I've been feeling low lately.",
+            "Can you help me with a coping strategy?"
         ]
     },
     "Life Coach": {
@@ -176,9 +176,9 @@ AVATARS = {
         "ready_msg": "is ready to help you grow",
         "system_prompt": "You are an enthusiastic life coach. Your role is to:\n1. Help users set and achieve personal goals\n2. Provide motivation and accountability\n3. Share practical strategies for self-improvement\n4. Focus on building confidence and resilience\n5. Encourage positive thinking and action",
         "suggestions": [
-            "⚡ How can I stay motivated today?",
-            "⚡ I want to set some personal goals.",
-            "⚡ How can I build more resilience?"
+            "How can I stay motivated today?",
+            "I want to set some personal goals.",
+            "How can I build more resilience?"
         ]
     },
     "Friend": {
@@ -191,9 +191,9 @@ AVATARS = {
         "ready_msg": "is here to listen",
         "system_prompt": "You are a caring and understanding friend. Your role is to:\n1. Provide emotional support and validation\n2. Listen actively and show empathy\n3. Share personal experiences when relevant\n4. Offer practical advice from a friend's perspective\n5. Maintain a warm and casual conversation style",
         "suggestions": [
-            "🤗 I just need someone to talk to.",
-            "🤗 I had a rough day at work.",
-            "🤗 Can you tell me something positive?"
+            "I just need someone to talk to.",
+            "I had a rough day at work.",
+            "Can you tell me something positive?"
         ]
     }
 }
@@ -412,7 +412,7 @@ def confirm_clear_dialog():
     st.warning("Are you sure you want to clear your entire conversation history? This action cannot be undone.")
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("Cancel", use_container_width=True):
+        if st.button("Cancel", use_container_width=True, icon="🔙"):
             st.rerun()
     with col2:
         if st.button("Yes, Clear History", type="primary", use_container_width=True, icon="🗑️"):
@@ -507,8 +507,12 @@ def main():
         st.markdown("---")
 
     # Calculate session duration for temporal context
-    duration_mins = int((now - state.session_start_time).total_seconds() // 60)
-    duration_label = f"{duration_mins}m active" if duration_mins > 0 else "Just started"
+    duration_total_mins = int((now - state.session_start_time).total_seconds() // 60)
+    if duration_total_mins >= 60:
+        h, m = divmod(duration_total_mins, 60)
+        duration_label = f"{h}h {m}m active"
+    else:
+        duration_label = f"{duration_total_mins}m active" if duration_total_mins > 0 else "Just started"
 
     # Manage Conversation Popover
     with st.sidebar.popover(f"⚙️ {selected_avatar} Session ({msg_count} message{'s' if msg_count != 1 else ''})", use_container_width=True):
@@ -592,7 +596,10 @@ def main():
             - 🔒 **Conversations are confidential** and not stored on our servers permanently.
             - 🔑 Your **Mistral API key** is used only for processing this session.
         """)
-    st.sidebar.caption("Tip: ⌨️ Press **Enter** to send, **Shift+Enter** for new lines.")
+    st.sidebar.markdown(
+        "<small>Tip: ⌨️ Press <kbd>Enter</kbd> to send, <kbd>Shift</kbd>+<kbd>Enter</kbd> for new lines.</small>",
+        unsafe_allow_html=True
+    )
 
     st.sidebar.info("⚕️ This bot is **not a replacement** for professional care. If you're in distress, please use the resources below. They are free, confidential, and available 24/7.")
 
@@ -621,7 +628,7 @@ def main():
             if idx == 0 and msg_count == 1:
                 st.caption("✨ Click on a suggestion below or type your own message to start:")
                 for suggestion in suggestions:
-                    if st.button(suggestion, use_container_width=True, help=f"Ask {selected_avatar}: '{suggestion}'", icon="✨"):
+                    if st.button(suggestion, use_container_width=True, help=f"Ask {selected_avatar}: '{suggestion}'", icon=assistant_icon):
                         processed_suggestion = suggestion
 
     prompt = processed_suggestion if processed_suggestion else None
@@ -718,9 +725,9 @@ def main():
     st.sidebar.divider()
     st.sidebar.subheader("🚨 Emergency Resources", divider="red")
     st.sidebar.caption("If you're in crisis, please contact these services. They are free, confidential, and available 24/7:")
-    st.sidebar.link_button("📞 Call or Text 988", "tel:988", use_container_width=True, help="National Suicide Prevention Lifeline - Free, confidential, 24/7")
-    st.sidebar.link_button("💬 Text HOME to 741741", "sms:741741?body=HOME", use_container_width=True, help="Crisis Text Line - Free, confidential, 24/7")
-    st.sidebar.link_button("🚑 Call 911", "tel:911", use_container_width=True, type="primary", help="Emergency Services - For immediate danger")
+    st.sidebar.link_button("📞 Call or Text 988", "tel:988", use_container_width=True, help="Connect with trained counselors for free, confidential support 24/7.")
+    st.sidebar.link_button("💬 Text HOME to 741741", "sms:741741?body=HOME", use_container_width=True, help="Text with a Crisis Counselor for immediate, confidential support.")
+    st.sidebar.link_button("🚑 Call 911", "tel:911", use_container_width=True, type="primary", help="Contact local emergency services if you are in immediate danger.")
 
 if __name__ == "__main__":
     main()
