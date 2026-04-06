@@ -95,11 +95,35 @@ class TestSanitizeError(unittest.TestCase):
             ("My pаssword: hidden123", "My password: [REDACTED]"),
             ("The sеcrеt is 'my-val'", "The secret is [REDACTED]"),
             ("apі_kеy: token123", "api_key: [REDACTED]"),
-            ("My kеy is sk-12345", "My key is [REDACTED_API_KEY]")
+            ("My kеy is sk-12345", "My key is [REDACTED_API_KEY]"),
+            ("My РАSSWORD: hidden123", "My PASSWORD: [REDACTED]"), # Mixed-case Cyrillic
+            ("My ѕесrеt is val", "My secret is [REDACTED]"),      # 'ѕ' is Dze
         ]
         for input_str, expected in test_cases:
             result = sanitize_error(input_str)
             self.assertEqual(result, expected, f"Failed for homoglyph input: {input_str}")
+
+    def test_sanitize_error_basic_auth(self):
+        msg = "Authorization: Basic dXNlcjpwYXNzd29yZA=="
+        sanitized = sanitize_error(msg)
+        self.assertIn("Basic [REDACTED]", sanitized)
+        self.assertNotIn("dXNlcjpwYXNzd29yZA==", sanitized)
+
+    def test_sanitize_error_new_keywords(self):
+        test_cases = [
+            ("api-key: secret123", "api-key: [REDACTED]"),
+            ("client_secret: hidden", "client_secret: [REDACTED]"),
+            ("x-api-key: value", "x-api-key: [REDACTED]")
+        ]
+        for input_str, expected in test_cases:
+            result = sanitize_error(input_str)
+            self.assertEqual(result, expected, f"Failed for keyword: {input_str}")
+
+    def test_sanitize_error_invisible_chars_bypass(self):
+        # Soft hyphen (\u00AD) and Zero Width Space (\u200B)
+        msg = "p\u00ADa\u200Bssword: hidden123"
+        sanitized = sanitize_error(msg)
+        self.assertEqual(sanitized, "password: [REDACTED]")
 
 if __name__ == '__main__':
     unittest.main()

@@ -97,3 +97,8 @@
 **Vulnerability:** Redaction of secrets (API keys, tokens) was bypassed when keywords were preceded by underscores (e.g., `MISTRAL_API_KEY`).
 **Learning:** Standard word boundaries (`\b`) consider underscores to be part of a word. Consequently, environment variable names often bypass regex patterns that rely on `\b` to identify sensitive keywords.
 **Prevention:** Update sanitization regexes to explicitly allow underscores as valid leading characters for sensitive identifiers, for example by using `(?:\b|(?<=_))` to match keywords either at a word boundary or immediately following an underscore.
+
+## 2026-04-06 - [Enhanced Sanitization Hardening and Bypass Prevention]
+**Vulnerability:** Potential leakage of Basic Auth credentials, `api-key`, `client_secret`, and `x-api-key` headers. Additionally, sanitization and crisis filters could be bypassed using mixed-case homoglyphs (lookalike characters) or control/formatting characters (e.g., bidi controls, soft hyphen).
+**Learning:** Security filters based on simple keyword matching or ASCII-only normalization are insufficient. Attackers can use mixed-case Cyrillic/Greek homoglyphs and varied non-printing characters (e.g., \u00AD, \u202A-\u202E, \u2060) to fragment keywords or tokens while maintaining visual similarity.
+**Prevention:** Maintain a comprehensive `_HOMOGLYPH_MAP` including both lowercase and uppercase lookalikes. Use an expanded `_INVISIBLE_CHARS_RE` to strip formatting and bidi control characters during normalization. Ensure all common API security headers and secret keywords are explicitly covered by the sanitization pipeline and synchronized with the fast-path triggers.
