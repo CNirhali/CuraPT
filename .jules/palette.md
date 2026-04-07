@@ -22,6 +22,10 @@
 **Learning:** Providing real-time session metadata (like "minutes active") and using human-centric pluralization in UI labels (e.g., "1 message" vs "2 messages") increases user perceived value and provides helpful temporal context. Synchronizing time formats across different UI sections (chat bubbles vs sidebar) reduces cognitive load and creates a more cohesive experience.
 **Action:** Always implement proper pluralization for count-based labels and ensure temporal metadata (timestamps, durations) are formatted consistently with the primary content area.
 
+## 2025-05-21 - [Native Icon Alignment & Dedicated Onboarding]
+**Learning:** Utilizing Streamlit's native `icon` parameter in components like `st.sidebar.link_button`, `st.expander`, and `st.download_button` ensures consistent vertical alignment and a professional 'first-party' feel compared to embedding emojis in text labels. Furthermore, presenting conversation suggestions in a dedicated 'Quick Start' section (using columns and a themed divider) after the first message history improves discoverability and onboarding clarity by separating guidance from dialogue.
+**Action:** Prioritize the `icon` parameter for all interactive elements to maintain visual hierarchy and move multi-option onboarding suggestions to dedicated layout containers (like `st.columns`) for better scanability.
+
 ## 2025-05-21 - [Frictionless Crisis Intervention & Visual Affordance]
 **Learning:** In high-stress or crisis scenarios, every extra step (like typing 'HOME' to a shortcode) is a barrier. Pre-filling SMS bodies using URI parameters (`sms:number?body=text`) significantly improves accessibility for users in distress. Additionally, using standard icons for suggestion chips and destructive confirmations provides immediate visual affordance, making the interface more intuitive.
 **Action:** Always use pre-filled message bodies for SMS-based utility links and leverage Streamlit's `icon` parameter for better visual cues on interactive elements.
