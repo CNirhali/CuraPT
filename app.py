@@ -582,14 +582,15 @@ def main():
                 state.export_cache_key = cache_key
 
             st.download_button(
-                label=f"📥 Export Conversation {msg_count_label}",
+                label=f"Export Conversation {msg_count_label}",
                 data=state.last_export,
                 file_name=f"{selected_avatar.lower().replace(' ', '_')}_chat_{now.strftime('%Y%m%d_%H%M%S')}.txt",
                 mime="text/plain",
                 help="Download a text file containing your conversation history and safety resources.",
-                use_container_width=True
+                use_container_width=True,
+                icon="📥"
             )
-            with st.expander("📋 Copy Transcript"):
+            with st.expander("Copy Transcript", icon="📋"):
                 st.code(state.last_export, language=None)
         else:
             st.info("No messages to export yet.")
@@ -604,7 +605,7 @@ def main():
                      type="secondary"):
             confirm_clear_dialog()
 
-    with st.sidebar.expander("🛡️ Privacy & Safety"):
+    with st.sidebar.expander("Privacy & Safety", icon="🛡️"):
         st.write("""
             - 🔒 **Conversations are confidential** and not stored on our servers permanently.
             - 🔑 Your **Mistral API key** is used only for processing this session.
@@ -638,12 +639,18 @@ def main():
             st.markdown(content)
             if timestamp_caption:
                 st.caption(timestamp_caption)
-            # Integrate suggestions into the initial greeting bubble for better visual hierarchy
-            if idx == 0 and msg_count == 1:
-                st.caption("✨ Click on a suggestion below or type your own message to start:")
-                for suggestion in suggestions:
-                    if st.button(suggestion, use_container_width=True, help=f"Ask {selected_avatar}: '{suggestion}'", icon=assistant_icon):
-                        processed_suggestion = suggestion
+
+    # Show "Quick Start" suggestions after the message history for a fresh session
+    processed_suggestion = None
+    if msg_count == 1:
+        st.divider()
+        st.caption("✨ **Not sure where to start? Try one of these:**")
+        # Layout suggestions in columns for better visual organization
+        cols = st.columns(len(suggestions))
+        for i, suggestion in enumerate(suggestions):
+            with cols[i]:
+                if st.button(suggestion, use_container_width=True, help=f"Ask {selected_avatar}: '{suggestion}'", icon="✨"):
+                    processed_suggestion = suggestion
 
     prompt = processed_suggestion if processed_suggestion else None
 
@@ -741,9 +748,9 @@ def main():
     st.sidebar.divider()
     st.sidebar.subheader("🚨 Emergency Resources", divider="red")
     st.sidebar.caption("If you're in crisis, please contact these services. They are free, confidential, and available 24/7:")
-    st.sidebar.link_button("📞 Call or Text 988", "tel:988", use_container_width=True, help="Connect with trained counselors for free, confidential support 24/7.")
-    st.sidebar.link_button("💬 Text HOME to 741741", "sms:741741?body=HOME", use_container_width=True, help="Text with a Crisis Counselor for immediate, confidential support.")
-    st.sidebar.link_button("🚑 Call 911", "tel:911", use_container_width=True, type="primary", help="Contact local emergency services if you are in immediate danger.")
+    st.sidebar.link_button("Call or Text 988", "tel:988", use_container_width=True, help="Connect with trained counselors for free, confidential support 24/7.", icon="📞")
+    st.sidebar.link_button("Text HOME to 741741", "sms:741741?body=HOME", use_container_width=True, help="Text with a Crisis Counselor for immediate, confidential support.", icon="💬")
+    st.sidebar.link_button("Call 911", "tel:911", use_container_width=True, type="primary", help="Contact local emergency services if you are in immediate danger.", icon="🚑")
 
 if __name__ == "__main__":
     main()
