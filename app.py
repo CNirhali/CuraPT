@@ -43,7 +43,7 @@ SANITIZATION_PATTERNS = [
     # Allow underscores or hyphens before keywords (e.g., MISTRAL_API_KEY, x-api-key) using a lookbehind.
     (re.compile(r'(?i)(["\']?)(?:\b|(?<=[_-]))(password|passwd|secret|token|api_key|api-key|client_secret|x-api-key|aws_secret_access_key)\1(\s*(?:[:=]|is)\s*)(?!\[REDACTED)(?:"[^"]*"|\'[^\']*\'|[^\s,;]+)'), r'\1\2\1\3[REDACTED]', re.compile(r'password|passwd|secret|token|api_key|api-key|client_secret|x-api-key|aws_secret_access_key')),
     # Generic 'key' pattern is last and avoids matching PEM headers via negative lookahead
-    (re.compile(r'(?i)(["\']?)(?:\b|(?<=[_-]))(key)\1(\s*(?:[:=]|is)\s*)(?!\[REDACTED|---)(?:"[^"]*"|\'[^\']*\'|[^\s,;]+)'), r'\1\2\1\3[REDACTED]', re.compile(r'key:|key=|key is|key |"key":|\'key\':')),
+    (re.compile(r'(?i)(["\']?)(?:\b|(?<=[_-]))(key)\1(\s*(?:[:=]|is)\s*)(?!\[REDACTED|---)(?:"[^"]*"|\'[^\']*\'|[^\s,;]+)'), r'\1\2\1\3[REDACTED]', re.compile(r'key')),
 ]
 # Optimization: Substring markers to trigger expensive regex execution
 # Refinement: replaced 'pass' with 'password'/'passwd' to avoid false positives on 'compassion'
@@ -52,7 +52,7 @@ SANITIZATION_PATTERNS = [
 # Refinement: replaced 'begin' with '-----begin' to reduce false positives for common text.
 # Added Basic auth and new secret keywords (api-key, client_secret, x-api-key).
 SENSITIVE_MARKERS = [
-    "password", "token", "sk-", "secret", "key:", "key=", "key is", "key ", "passwd", "akia", "asia", "bearer", "basic",
+    "password", "token", "sk-", "secret", "key", "passwd", "akia", "asia", "bearer", "basic",
     "aiza", "github_pat_", "ghp_", "gho_", "ghu_", "ghr_", "ghs_", "rk_live", "rk_test", "sk_live", "sk_test",
     "xoxb-", "xoxp-", "xoxg-", "xoxr-", "xoxs-", "gocspx-", "eyj", "-----begin", "api_key", "api-key", "client_secret",
     "x-api-key", "aws_secret_access_key",
@@ -247,7 +247,8 @@ CRISIS_KEYWORDS = [
 CRISIS_KEYWORDS_LOWER = [k.lower() for k in CRISIS_KEYWORDS]
 # Pre-compiled regex for faster crisis detection (using lowercase for performance)
 # Use word boundaries (\b) to prevent false positives (e.g., "send it all" matching "end it all")
-CRISIS_PATTERN = re.compile(r'\b(?:' + r'|'.join(map(re.escape, CRISIS_KEYWORDS_LOWER)) + r')\b')
+# We split keywords by whitespace and rejoin with \s+ to handle multiline or multiple space obfuscation
+CRISIS_PATTERN = re.compile(r'\b(?:' + r'|'.join([r'\s+'.join(map(re.escape, k.split())) for k in CRISIS_KEYWORDS_LOWER]) + r')\b')
 # Shortest crisis keywords like "suicide" or "kill me" are 7 characters long
 MIN_CRISIS_KEYWORD_LEN = 7
 
