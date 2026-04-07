@@ -285,18 +285,20 @@ def detect_crisis(message, msg_lower=None, pos=0, is_ascii=None):
         return False
 
     # Slow-path: Normalize NFKC and apply manual homoglyph mapping for defense-in-depth.
-    # We use slicing here because normalization might change string length/indices.
-    search_text = msg_lower[pos:]
-
-    # Optimization: Only normalize if the string is not already NFKC or contains known obfuscation.
-    # This provides a ~30x speedup for clean non-ASCII strings (like emojis).
-    if not unicodedata.is_normalized('NFKC', search_text) or _OBFUSCATION_RE.search(search_text):
+    # We only normalize if the string contains known obfuscation or is not already NFKC.
+    # Optimization: Swapping order to use the faster _OBFUSCATION_RE.search(msg_lower, pos)
+    # first avoids a string slice for clean messages.
+    if _OBFUSCATION_RE.search(msg_lower, pos) or not unicodedata.is_normalized('NFKC', msg_lower[pos:]):
+        # We use slicing here because normalization might change string length/indices.
+        search_text = msg_lower[pos:]
         normalized = _INVISIBLE_CHARS_RE.sub('', search_text)
         normalized = unicodedata.normalize('NFKC', normalized).translate(_HOMOGLYPH_MAP)
         return bool(CRISIS_PATTERN.search(normalized))
 
-    # String is already clean and normalized, so we can directly search it.
-    return bool(CRISIS_PATTERN.search(search_text))
+    # Safety: Even if the string is clean/normalized, we must perform a slice-based
+    # search to ensure word boundaries (\b) are correctly handled at the start
+    # of the search range, as demonstrated by the reproduction script.
+    return bool(CRISIS_PATTERN.search(msg_lower[pos:]))
 
 def get_crisis_response():
     """Return emergency resources and crisis response."""
@@ -532,19 +534,24 @@ def main():
         st.write("Settings for your current chat session.")
         st.caption(f"🕒 Started at {state.session_start_time.strftime('%I:%M %p')} • {duration_label}")
 
-        # Calculate message counts for transparency
-        # Optimization: Use a single-pass loop instead of two sum() calls to reduce O(N) list traversal overhead.
-        user_msgs = 0
-        assistant_msgs = 0
-        for m in messages:
-            if m["role"] == "user":
-                user_msgs += 1
-            elif m["role"] == "assistant":
-                assistant_msgs += 1
+        # Optimization: Cache message counts in session state to avoid O(N) traversal on every rerun.
+        # We use the current message count as part of the key to ensure the cache is invalidated when history changes.
+        msg_counts_cache_key = f"counts_{msg_count}"
+        if state.get("msg_counts_key") != msg_counts_cache_key:
+            user_msgs = 0
+            assistant_msgs = 0
+            for m in messages:
+                if m["role"] == "user":
+                    user_msgs += 1
+                elif m["role"] == "assistant":
+                    assistant_msgs += 1
+            state.user_msgs_count = user_msgs
+            state.assistant_msgs_count = assistant_msgs
+            state.msg_counts_key = msg_counts_cache_key
 
         st.subheader("Session Details", divider=theme_color)
-        st.caption(f"👤 Your messages: {user_msgs}")
-        st.caption(f"{persona['icon']} {selected_avatar}'s messages: {assistant_msgs}")
+        st.caption(f"👤 Your messages: {state.user_msgs_count}")
+        st.caption(f"{persona['icon']} {selected_avatar}'s messages: {state.assistant_msgs_count}")
         st.divider()
 
         # Export History
@@ -623,7 +630,7 @@ def main():
 
     # Display chat messages from history
     processed_suggestion = None
-    for idx, message in enumerate(messages):
+    for message in messages:
         # Optimization: use dictionary lookups instead of multiple if/else branches
         role = message["role"]
         content = message["content"]
