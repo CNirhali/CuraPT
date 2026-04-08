@@ -29,3 +29,7 @@
 ## 2025-05-21 - [Frictionless Crisis Intervention & Visual Affordance]
 **Learning:** In high-stress or crisis scenarios, every extra step (like typing 'HOME' to a shortcode) is a barrier. Pre-filling SMS bodies using URI parameters (`sms:number?body=text`) significantly improves accessibility for users in distress. Additionally, using standard icons for suggestion chips and destructive confirmations provides immediate visual affordance, making the interface more intuitive.
 **Action:** Always use pre-filled message bodies for SMS-based utility links and leverage Streamlit's `icon` parameter for better visual cues on interactive elements.
+
+## 2025-05-22 - [Standardized Streamlit Iconography & In-Chat Intervention]
+**Learning:** Moving emojis from text labels to the native `icon` parameter in `st.button` and `st.sidebar.popover` provides a more consistent visual experience and cleaner UI alignment. Additionally, embedding immediate crisis intervention links (`st.link_button`) directly within the chat flow—rather than relying solely on sidebar resources—provides crucial, frictionless support for users at the exact moment of distress.
+**Action:** Utilize native Streamlit `icon` parameters to reduce visual noise in labels and implement contextual, immediate-action buttons for high-stakes user journeys like crisis detection.
