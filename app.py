@@ -69,8 +69,8 @@ SENSITIVE_FAST_RE = re.compile('|'.join(map(re.escape, SENSITIVE_MARKERS)))
 # Expanded to include uppercase lookalikes and additional characters (ѕ, В, Н, Т, М, К, etc.)
 # to prevent bypasses using mixed-case or varied homoglyphs.
 _HOMOGLYPH_MAP = str.maketrans(
-    'аеіорсхујкмнзѕАЕІОРСХУЈКМНЗЅВНТαεηικνρστυΑΒΕΖΗΙΚΜΝΟΡΤΥΦΧ',  # Lookalikes
-    'aeiopcxyjkmnzsAEIOPCXYJKMNZSBHTaenikvpstyABEZHIKMNOPTYFX'   # Latin equivalents
+    'аеіорсхујкмнзѕвтпАЕІОРСХУЈКМЗЅВНТαεηικνρστυςΑΒΕΖΗΙΚΜΝΟΡΤΦΧＭＮＯＰＲＴＹ',  # Lookalikes
+    'aeiopcxyjkmnzsvtnAEIOPCXYJKMZSBHTaenikvpstysABEZHIKMNOPTFXMNOPRTY'   # Latin equivalents
 )
 
 # Common invisible/zero-width and control characters used for obfuscation (OWASP A03:2021)
@@ -79,7 +79,7 @@ _INVISIBLE_CHARS_RE = re.compile(r'[\u00AD\u200B\u200C\u200D\u202A-\u202E\u2060\
 
 # Optimization: Combined regex of homoglyphs and invisible characters for fast-path trigger.
 # This allows skipping expensive NFKC normalization and translation for clean non-ASCII strings (like emojis).
-_OBFUSCATION_RE = re.compile(r'[аеіорсхујкмнзѕАЕІОРСХУЈКМНЗЅВНТαεηικνρστυΑΒΕΖΗΙΚΜΝΟΡΤΥΦΧ\u00AD\u200B\u200C\u200D\u202A-\u202E\u2060\uFEFF]')
+_OBFUSCATION_RE = re.compile(r'[аеіорсхујкмнзѕвтпАЕІОРСХУЈКМЗЅВНТαεηικνρστυςΑΒΕΖΗΙΚΜΝΟΡΤΦΧＭＮＯＰＲＴＹ\u00AD\u200B\u200C\u200D\u202A-\u202E\u2060\uFEFF]')
 
 def sanitize_error(message, msg_lower=None, is_ascii=None):
     """
@@ -288,17 +288,16 @@ def detect_crisis(message, msg_lower=None, pos=0, is_ascii=None):
     # We only normalize if the string contains known obfuscation or is not already NFKC.
     # Optimization: Swapping order to use the faster _OBFUSCATION_RE.search(msg_lower, pos)
     # first avoids a string slice for clean messages.
-    if _OBFUSCATION_RE.search(msg_lower, pos) or not unicodedata.is_normalized('NFKC', msg_lower[pos:]):
+    if _OBFUSCATION_RE.search(msg_lower, pos) or not unicodedata.is_normalized('NFKC', message[pos:]):
         # We use slicing here because normalization might change string length/indices.
-        search_text = msg_lower[pos:]
+        search_text = message[pos:]
         normalized = _INVISIBLE_CHARS_RE.sub('', search_text)
-        normalized = unicodedata.normalize('NFKC', normalized).translate(_HOMOGLYPH_MAP)
+        normalized = unicodedata.normalize('NFKC', normalized).translate(_HOMOGLYPH_MAP).lower()
         return bool(CRISIS_PATTERN.search(normalized))
 
-    # Safety: Even if the string is clean/normalized, we must perform a slice-based
-    # search to ensure word boundaries (\b) are correctly handled at the start
-    # of the search range, as demonstrated by the reproduction script.
-    return bool(CRISIS_PATTERN.search(msg_lower[pos:]))
+    # Safety: Even if the string is clean/normalized, we use pos-based search
+    # which is O(1) memory and correctly respects existing word boundaries.
+    return bool(CRISIS_PATTERN.search(msg_lower, pos))
 
 def get_crisis_response():
     """Return emergency resources and crisis response."""
@@ -718,7 +717,8 @@ def main():
                             # Incremental crisis check for immediate intervention (Defense-in-depth)
                             # Optimization: Pass pre-calculated state to maintain O(N) total complexity.
                             # We batch this with the UI update to reduce safety processing overhead by 80%.
-                            if detect_crisis(full_response, msg_lower=full_response_lower, pos=max(0, len(full_response) - 300), is_ascii=full_is_ascii):
+                            # Safety: Use full_response_lower length for accurate pos-based regex search.
+                            if detect_crisis(full_response, msg_lower=full_response_lower, pos=max(0, len(full_response_lower) - 300), is_ascii=full_is_ascii):
                                 logger.warning("Safety: Crisis detected in AI response during streaming. Aborting.")
                                 full_response = CRISIS_FALLBACK
                                 aborted = True
