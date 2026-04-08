@@ -530,7 +530,7 @@ def main():
         duration_label = f"{duration_total_mins}m active" if duration_total_mins > 0 else "Just started"
 
     # Manage Conversation Popover
-    with st.sidebar.popover(f"⚙️ {selected_avatar} Session {msg_count_label}", use_container_width=True):
+    with st.sidebar.popover(f"{selected_avatar} Session {msg_count_label}", use_container_width=True, icon="⚙️"):
         st.write("Settings for your current chat session.")
         st.caption(f"🕒 Started at {state.session_start_time.strftime('%I:%M %p')} • {duration_label}")
 
@@ -606,10 +606,11 @@ def main():
 
         # Clear Chat History with confirmation dialog
         st.write("⚠️ **Destructive Actions**")
-        if st.button(f"🗑️ Clear Chat History {msg_count_label}",
+        if st.button(f"Clear Chat History {msg_count_label}",
                      help="Open a confirmation dialog to delete all messages",
                      use_container_width=True,
-                     type="secondary"):
+                     type="secondary",
+                     icon="🗑️"):
             confirm_clear_dialog()
 
     with st.sidebar.expander("Privacy & Safety", icon="🛡️"):
@@ -651,12 +652,12 @@ def main():
     processed_suggestion = None
     if msg_count == 1:
         st.divider()
-        st.caption("✨ **Not sure where to start? Try one of these:**")
+        st.subheader("✨ Not sure where to start? Try one of these:", divider=theme_color)
         # Layout suggestions in columns for better visual organization
         cols = st.columns(len(suggestions))
         for i, suggestion in enumerate(suggestions):
             with cols[i]:
-                if st.button(suggestion, use_container_width=True, help=f"Ask {selected_avatar}: '{suggestion}'", icon="✨"):
+                if st.button(suggestion, use_container_width=True, help=f"Ask {selected_avatar}: '{suggestion}'", icon=assistant_icon):
                     processed_suggestion = suggestion
 
     prompt = processed_suggestion if processed_suggestion else None
@@ -684,6 +685,8 @@ def main():
             if is_crisis:
                 with st.chat_message(selected_avatar, avatar=assistant_icon):
                     st.error(crisis_text)
+                    st.link_button("Call or Text 988", "tel:988", use_container_width=True, help="Connect with trained counselors for free, confidential support 24/7.", icon="📞")
+                    st.link_button("Text HOME to 741741", "sms:741741?body=HOME", use_container_width=True, help="Text with a Crisis Counselor for immediate, confidential support.", icon="💬")
             else:
                 # Generate and stream bot response immediately
                 # Convert message dictionaries to ChatMessage objects for the Mistral API
