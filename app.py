@@ -219,7 +219,7 @@ for name, data in AVATARS.items():
         "placeholder": data["chat_placeholder"],
         "thinking_msg": thinking_msg,
         # Pre-calculate markdown thinking state to avoid string slicing and formatting during reruns
-        "thinking_markdown": f"**{icon} {thinking_msg[2:]}**",
+        "thinking_markdown": f"**{icon} {name} is {thinking_msg[2:].lower()}**",
         "display_name": f"{icon} {name}",
         "description": data["description"],
         "suggestions": data["suggestions"],
@@ -571,7 +571,7 @@ def main():
                     "-" * 40 + "\n"
                 ]
                 export_parts.extend(
-                    f"[{msg.get('timestamp', 'N/A')}] {selected_avatar if msg['role'] == 'assistant' else 'You'}: {msg['content']}\n\n"
+                    f"[{msg.get('timestamp', 'N/A')}] {'👤 You' if msg['role'] == 'user' else f'{persona['icon']} {selected_avatar}'}: {msg['content']}\n\n"
                     for msg in messages
                 )
                 export_parts.append("\n" + "=" * 40)
@@ -686,6 +686,7 @@ def main():
                     st.error(crisis_text)
                     st.link_button("Call or Text 988", "tel:988", use_container_width=True, help="Connect with trained counselors for free, confidential support 24/7.", icon="📞")
                     st.link_button("Text HOME to 741741", "sms:741741?body=HOME", use_container_width=True, help="Text with a Crisis Counselor for immediate, confidential support.", icon="💬")
+                    st.link_button("Call 911", "tel:911", use_container_width=True, type="primary", help="Contact local emergency services if you are in immediate danger.", icon="🚑")
             else:
                 # Generate and stream bot response immediately
                 # Convert message dictionaries to ChatMessage objects for the Mistral API
