@@ -33,6 +33,8 @@ SANITIZATION_PATTERNS = [
     (re.compile(r'\b(?:rk|sk)_(?:live|test)_[0-9a-zA-Z]{24,99}\b'), '[REDACTED_STRIPE_KEY]', re.compile(r'rk_live|rk_test|sk_live|sk_test')),
     (re.compile(r'\bxox[bpgrs]-[0-9a-zA-Z]{10,48}\b'), '[REDACTED_SLACK_TOKEN]', re.compile(r'xoxb-|xoxp-|xoxg-|xoxr-|xoxs-')),
     (re.compile(r'\bGOCSPX-[a-zA-Z0-9-_]{24,99}\b'), '[REDACTED_GOCSPX]', re.compile(r'gocspx-')),
+    (re.compile(r'\b[a-zA-Z0-9_-]{24,32}\.[a-zA-Z0-9_-]{6,7}\.[a-zA-Z0-9_-]{27,38}\b'), '[REDACTED_DISCORD_TOKEN]', re.compile(r'(?i)discord')),
+    (re.compile(r'https://hooks\.slack\.com/services/T[a-zA-Z0-9_]{8,11}/B[a-zA-Z0-9_]{8,11}/[a-zA-Z0-9_]{24}'), '[REDACTED_SLACK_WEBHOOK]', re.compile(r'hooks\.slack\.com')),
     (re.compile(r'\b(?:4[0-9]{3}|5[1-5][0-9]{2}|6011)(?:[\s-]?[0-9]{4}){3}\b|\b3[47][0-9]{2}[\s-]?[0-9]{6}[\s-]?[0-9]{5}\b'), '[REDACTED_PII]', re.compile(r'4[0-9]|5[1-5]|3[47]|6011')),
     (re.compile(r'\beyJ[a-zA-Z0-9_\-\/+=]{10,}\.[a-zA-Z0-9_\-\/+=]{10,}\.[a-zA-Z0-9_\-\/+=]{10,}\b'), '[REDACTED_JWT]', re.compile(r'eyj')),
     (re.compile(r'(?i)Bearer\s+[a-zA-Z0-9._\-\/+=]+'), 'Bearer [REDACTED]', re.compile(r'bearer')),
@@ -54,7 +56,7 @@ SANITIZATION_PATTERNS = [
 SENSITIVE_MARKERS = [
     "password", "token", "sk-", "secret", "key", "passwd", "akia", "asia", "bearer", "basic",
     "aiza", "github_pat_", "ghp_", "gho_", "ghu_", "ghr_", "ghs_", "rk_live", "rk_test", "sk_live", "sk_test",
-    "xoxb-", "xoxp-", "xoxg-", "xoxr-", "xoxs-", "gocspx-", "eyj", "-----begin", "api_key", "api-key", "client_secret",
+    "xoxb-", "xoxp-", "xoxg-", "xoxr-", "xoxs-", "gocspx-", "discord", "hooks.slack.com", "eyj", "-----begin", "api_key", "api-key", "client_secret",
     "x-api-key", "aws_secret_access_key",
     "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", # Visa
     "51", "52", "53", "54", "55",                              # Mastercard
@@ -62,7 +64,7 @@ SENSITIVE_MARKERS = [
     "6011"                                                     # Discover
 ]
 # Optimization: Pre-compiled regex for global fast-path check in sanitize_error.
-# Benchmarks show this is ~1.6x faster than any() with 43 markers for clean messages.
+# Benchmarks show this is ~1.6x faster than any() with 45 markers for clean messages.
 SENSITIVE_FAST_RE = re.compile('|'.join(map(re.escape, SENSITIVE_MARKERS)))
 
 # Common Latin-lookalike homoglyphs (e.g., Cyrillic, Greek) for normalization
