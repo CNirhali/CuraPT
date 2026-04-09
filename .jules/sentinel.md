@@ -107,3 +107,8 @@
 **Vulnerability:** Crisis detection and secret sanitization filters could be bypassed using whitespace-based obfuscation (e.g., newlines, tabs, or multiple spaces between words or identifiers).
 **Learning:** Rigid regex patterns and fast-path markers that depend on literal spaces are easily defeated. Multi-word keywords like "kill myself" fail to match "kill\nmyself" if separated by a newline. Similarly, specific markers like "key:" bypass the sanitization fast-path if the separator is moved to a new line (e.g., "key\n:").
 **Prevention:** Harden multi-word safety keywords by rejoining components with `\s+` during regex compilation. Broaden fast-path substring markers (e.g., use 'key' instead of 'key:') to ensure the full regex engine is triggered regardless of surrounding whitespace or formatting.
+
+## 2026-04-09 - [Enhanced Redaction for Discord and Slack Secrets]
+**Vulnerability:** Potential leakage of Discord Bot Tokens and Slack Incoming Webhooks in logs or UI.
+**Learning:** Generic secret patterns (like 'token: ...') may catch some tokens if accompanied by keywords, but high-entropy secrets often appear standalone or in URLs (like Slack webhooks). These require specific, high-specificity regex patterns and dedicated fast-path markers to ensure robust protection without impacting performance on clean text.
+**Prevention:** Implement specialized regex patterns for platform-specific secret formats (e.g., Discord's 3-part token and Slack's service URL structure) and synchronize them with the performance-optimized trigger system.
