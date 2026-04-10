@@ -87,6 +87,7 @@ SENSITIVE_MARKERS = [
     "51", "52", "53", "54", "55",                              # Mastercard
     "34", "37",                                                # Amex
     "6011"                                                     # Discover
+]
 _S_PII_PREFIXES = [
     r"4[0-9]{3}", r"5[1-5][0-9]{2}", r"3[47][0-9]{2}", r"6011" # 4-digit CC prefixes
 ]
@@ -457,7 +458,8 @@ def get_time_based_greeting(hour=None):
 @st.dialog("Clear Conversation History")
 def confirm_clear_dialog():
     """Provide a modal confirmation for deleting conversation history."""
-    st.warning("Are you sure you want to clear your entire conversation history? This action cannot be undone.")
+    st.warning("Are you sure you want to clear your entire conversation history? This will delete all messages and reset the session timer. **This action cannot be undone.**")
+    st.info("✨ **Palette Tip**: Consider exporting your conversation transcript first if you'd like to save your progress for future reflection.")
     col1, col2 = st.columns(2)
     with col1:
         if st.button("Cancel", use_container_width=True, icon="🔙"):
@@ -552,11 +554,6 @@ def main():
     here_msg = persona["here_msg"]
     system_msg = persona["system_msg"]
 
-    with st.sidebar:
-        st.write(description)
-        st.caption(here_msg)
-        st.markdown("---")
-
     # Calculate session duration for temporal context
     duration_total_mins = int((now - state.session_start_time).total_seconds() // 60)
     if duration_total_mins >= 60:
@@ -564,6 +561,12 @@ def main():
         duration_label = f"{h}h {m}m active"
     else:
         duration_label = f"{duration_total_mins}m active" if duration_total_mins > 0 else "Just started"
+
+    with st.sidebar:
+        st.write(description)
+        st.caption(here_msg)
+        st.caption(f"⏱️ {duration_label} • 💬 {msg_count} message{'s' if msg_count != 1 else ''}")
+        st.markdown("---")
 
     # Manage Conversation Popover
     with st.sidebar.popover(f"{selected_avatar} Session {msg_count_label}", use_container_width=True, icon="⚙️"):
@@ -586,8 +589,13 @@ def main():
             state.msg_counts_key = msg_counts_cache_key
 
         st.subheader("Session Details", divider=theme_color)
-        st.caption(f"👤 Your messages: {state.user_msgs_count}")
-        st.caption(f"{persona['icon']} {selected_avatar}'s messages: {state.assistant_msgs_count}")
+        col_u, col_a = st.columns(2)
+        with col_u:
+            st.caption("👤 **You**")
+            st.write(f"**{state.user_msgs_count}** messages")
+        with col_a:
+            st.caption(f"{persona['icon']} **{selected_avatar}**")
+            st.write(f"**{state.assistant_msgs_count}** messages")
         st.divider()
 
         # Export History
@@ -605,6 +613,7 @@ def main():
                     f"Mental Health Ease Bot - {persona['icon']} {selected_avatar} Session",
                     f"Date: {now.strftime('%Y-%m-%d %H:%M:%S')}",
                     f"Session Duration: {duration_str}",
+                    f"Total Messages: {msg_count}",
                     "-" * 40 + "\n"
                 ]
                 export_parts.extend(
